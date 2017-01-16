@@ -1,0 +1,21 @@
+{
+  "name": "sig-report",
+  "description": "",
+  "main": "",
+  "authors": [
+    "marcelobns <marcelobns@live.com>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/marcelobns/sig-report",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "v4.0.0-alpha.6",
+    "components-font-awesome": "^4.7.0"
+  }
+}
