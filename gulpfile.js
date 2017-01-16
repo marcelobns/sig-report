@@ -21,12 +21,9 @@ gulp.task('server', function () {
     });
     gulp.watch(["public/**", "app/**", "resources/**", "routes/**"]).on("change", reload);
 });
-gulp.task('bower-install', function() {
-  return run('bower install').exec();
-});
 gulp.task('bower', ['bower-install'], function(){
     var css = gulp.src(mainBowerFiles({
-            overrides: {
+            overrides: {                
                 "jquery": {ignore : true},
                 "tether": {
                     main: ['./dist/css/tether.min.css']
@@ -36,6 +33,9 @@ gulp.task('bower', ['bower-install'], function(){
                 },
                 "components-font-awesome" : {
                     main: ['./css/font-awesome.min.*']
+                },
+                "selectize" : {
+                    main: ['./css/selectize.css']
                 }
             }
         }))
@@ -52,7 +52,10 @@ gulp.task('bower', ['bower-install'], function(){
                 "bootstrap": {
                     main: ['./dist/js/bootstrap.min.js']
                 },
-                "components-font-awesome" : {ignore: true}
+                "components-font-awesome" : {ignore: true},
+                "selectize" : {
+                    main: ['./js/standalone/selectize.min.js']
+                }
             }
         }))
     .pipe(gulp.dest('public/js'));
@@ -67,10 +70,14 @@ gulp.task('bower', ['bower-install'], function(){
                         './fonts/fontawesome-webfont.woff',
                         './fonts/fontawesome-webfont.woff2',
                     ]
-                }
+                },
+                "selectize": {ignore: true},
             }
         }))
     .pipe(gulp.dest('public/fonts'));
 
     return merge(css, js, fonts);
+});
+gulp.task('bower-install', function() {
+  return run('bower install').exec();
 });

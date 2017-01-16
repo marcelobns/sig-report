@@ -12,7 +12,12 @@ class DashboardController extends AppController {
             'matricula'=>'Matricula',
             'nome'=>'Nome',
             'ano_ingresso'=>'Ano Ingresso',
+            'curso'=>'Curso',
+            'data_nascimento'=>'Nascimento',
+            'cpf'=>'CPF',
         ];
+
+        
         return view('dashboard.discentes', $view);
     }
 }

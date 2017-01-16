@@ -16,6 +16,7 @@
   ],
   "dependencies": {
     "bootstrap": "v4.0.0-alpha.6",
-    "components-font-awesome": "^4.7.0"
+    "components-font-awesome": "^4.7.0",
+    "selectize": "selectize.js#^0.12.4"
   }
 }

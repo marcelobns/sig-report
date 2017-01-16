@@ -1,27 +1,27 @@
 @extends('layouts.app')
 @section('title', 'Discentes')
 @section('content')
-    <form class="" action="index.html" method="post">
+    <form class="" action="" method="get">
         <div class="row">
             <div class="col-sm-6">
                 <div class="form-group">
-                    <?=Form::select('discente[status]', $status, null, ['id'=>'DiscenteStatus', 'class'=>'select', 'placeholder'=>'<Todos os Status>', 'multiple']);?>
+                    <?=Form::select('status', $status, null, ['id'=>'DiscenteStatus', 'class'=>'select', 'placeholder'=>'<Todos os Status>', 'multiple']);?>
                 </div>
             </div>
             <div class="col-sm-6">
                 <div class="form-group">
-                    <?=Form::select('discente[curso_id]', $cursos, null, ['id'=>'DiscenteCursoId', 'class'=>'select', 'placeholder'=>'<Todos os Cursos>']);?>
+                    <?=Form::select('curso_id', $cursos, null, ['id'=>'DiscenteCursoId', 'class'=>'select', 'placeholder'=>'<Todos os Cursos>']);?>
                 </div>
             </div>
             <div class="col-sm-6">
                 <div class="form-group">
-                    <?=Form::select('discente[columns]', $columns, null, ['id'=>'DiscenteColumns', 'class'=>'select', 'multiple', 'placeholder'=>'<Exibir Colunas>']);?>
+                    <?=Form::select('columns', $columns, null, ['id'=>'DiscenteColumns', 'class'=>'select', 'multiple', 'placeholder'=>'<Selecione as Colunas>', 'required']);?>
                 </div>
             </div>
             <div class="col-sm-12">
                 <div class="form-group text-right">
-                    <button type="submit" name="button" class="btn btn-sm btn-outline-primary"><i class="fa fa-filter fa-lg"></i> Filtrar</button>
-                    <button type="button" name="button" class="btn btn-sm btn-outline-success"><i class="fa fa-download fa-lg"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa fa-filter fa-lg"></i> Filtrar</button>
+                    <button type="button" class="btn btn-sm btn-outline-success"><i class="fa fa-download fa-lg"></i></button>
                 </div>
             </div>
         </div>
