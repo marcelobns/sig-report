@@ -10,16 +10,15 @@
 
     <link rel="stylesheet" href="{{asset('public/css/bootstrap.min.css')}}">
     <link rel="stylesheet" href="{{asset('public/css/font-awesome.min.css')}}">
-    <link rel="stylesheet" href="{{asset('public/css/select2.min.css')}}">
     <link rel="stylesheet" href="{{asset('public/css/selectize.css')}}">
     <link rel="stylesheet" href="{{asset('public/css/custom.css')}}">
     @stack('link')
 </head>
 <body>
-    <div class="container wrapper">
+    <div class="container-fluid wrapper">
         <div class="row">
             @section('before')
-                <nav class="col-sm-3">
+                <nav class="col-md-2 col-sm-3">
                     <a class="navbar-brand text-muted" href="{{url('/')}}">
                         <img src='{{asset('public/img/ufrr-brasao.svg')}}'/>
                     </a>
@@ -41,8 +40,8 @@
                 @yield('content')
             </main>
             @section('after')
-                <footer class="col-sm-12">
-                    after
+                <footer class="col-sm-12 text-muted">
+                    <small><i class="fa fa-cc"></i> <?=date('Y')?></small>
                 </footer>
             @show
         </div>
@@ -50,7 +49,6 @@
     <script src="{{asset('public/js/jquery.min.js')}}" charset="utf-8"></script>
     <script src="{{asset('public/js/tether.min.js')}}" charset="utf-8"></script>
     <script src="{{asset('public/js/bootstrap.min.js')}}" charset="utf-8"></script>
-    <script src="{{asset('public/js/select2.min.js')}}" charset="utf-8"></script>
     <script src="{{asset('public/js/selectize.min.js')}}" charset="utf-8"></script>
     @stack('script')
 </body>

@@ -12,5 +12,6 @@
 
 Route::get('/', 'PageController@home');
 Route::get('/dashboard/discentes', 'DashboardController@discentes');
+Route::post('/dashboard/discentes', 'DashboardController@discentes');
 
 Auth::routes();

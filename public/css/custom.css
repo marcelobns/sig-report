@@ -14,6 +14,18 @@ h4, h5, h6 {
     color: rgba(0, 0, 0, 0.25);
 }
 .navbar-brand img {
-    width: 80px;
+    width: 78px;
     margin-bottom: 15px;
+}
+.select {
+    display: none;
+}
+.selectize-control {
+    display: block;
+}
+.zero_result {
+    color: rgba(0, 0, 0, 0.25);
+}
+.table tr {
+    font-size: 12px;
 }
