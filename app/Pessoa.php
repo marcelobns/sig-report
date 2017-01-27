@@ -13,7 +13,7 @@ class Pessoa extends AppModel {
         return date('d/m/Y', strtotime($value));
     }
     public function getCpfCnpjAttribute($value) {
-        $value = str_pad($value, 11, '0', STR_PAD_LEFT);        
+        $value = str_pad($value, 11, '0', STR_PAD_LEFT);
         return implode('.', [substr($value, 0, 3), substr($value, 3, 3), substr($value, 6, 3)]).'-'.substr($value, 9, 2);
     }
     public function discente() {

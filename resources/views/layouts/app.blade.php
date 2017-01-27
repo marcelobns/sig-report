@@ -23,7 +23,7 @@
                         <img src='{{asset('public/img/ufrr-brasao.svg')}}'/>
                     </a>
                     <ul class="list-group">
-                        <li class="list-group-item"><a href="{{url('dashboard/discentes')}}">Discentes</a></li>
+                        <li class="list-group-item"><a href="{{url('/discentes')}}">Discentes</a></li>
                         <li class="list-group-item">Docentes</li>
                         <li class="list-group-item">Cursos</li>
                         <li class="list-group-item">Porta ac consectetur ac</li>
@@ -50,6 +50,8 @@
     <script src="{{asset('public/js/tether.min.js')}}" charset="utf-8"></script>
     <script src="{{asset('public/js/bootstrap.min.js')}}" charset="utf-8"></script>
     <script src="{{asset('public/js/selectize.min.js')}}" charset="utf-8"></script>
+    <script src="{{asset('public/js/custom.js')}}" charset="utf-8"></script>
+
     @stack('script')
 </body>
 </html>

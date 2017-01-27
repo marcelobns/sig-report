@@ -18,5 +18,5 @@ class AppModel extends Model {
                 $model->user_id = Auth::user()->id;
             }
         });
-    }
+    }    
 }
