@@ -26,7 +26,7 @@
                         <li class="list-group-item"><a href="{{url('/discentes')}}">Discentes</a></li>
                         <li class="list-group-item">Docentes</li>
                         <li class="list-group-item">Cursos</li>
-                        <li class="list-group-item">Porta ac consectetur ac</li>
+                        <li class="list-group-item"><a href="{{url('/report')}}">Relatórios</a></li>
                         <li class="list-group-item">Vestibulum at eros</li>
                     </ul>
                 </nav>

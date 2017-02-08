@@ -30,7 +30,7 @@
                 </div>
                 @if (@$filepath)
                     <div class="form-group text-right filepath">
-                        <a href="{{$filepath}}" download>baixar arquivo.xls</a>
+                        <a href="{{$filepath}}" target="_blank"> baixar arquivo.csv </a>
                     </div>
                 @endif
             </div>

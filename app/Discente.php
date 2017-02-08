@@ -32,6 +32,6 @@ class Discente extends AppModel {
         $query->join('comum.pessoa', 'pessoa.id_pessoa', '=', 'public.discente.id_pessoa');
     }
     public function scopeJoinCurso($query) {
-        $query->join('public.curso', 'curso.id_curso', '=', 'public.discente.id_curso');
+        $query->leftjoin('public.curso', 'curso.id_curso', '=', 'public.discente.id_curso');
     }
 }

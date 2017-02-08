@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -33,9 +32,7 @@ class DiscenteController extends AppController {
             });
         }
         if(!empty($input->csv)){
-            ini_set('max_execution_time', 60);
-            ini_set('memory_limit', '2G');
-
+            $this->power_up();
             $view['filepath'] = $this->discentes_csv($query->get());
             $input->csv = '';
         }
@@ -50,12 +47,11 @@ class DiscenteController extends AppController {
     }
     public function discentes_csv($collection){
         $filename = md5($collection);
-        $filepath = "public/file/$filename.xls";
+        $filepath = "public/file/$filename.csv";
 
         if (!file_exists($filepath)) {
-
             $file = fopen($filepath, 'w');
-
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, Discente::csvColunas(), ';');
             foreach ($collection as $i=>$row) {
                 fputcsv($file, [
@@ -73,7 +69,7 @@ class DiscenteController extends AppController {
         return $filepath;
     }
     public function view($id){
-        $view['pessoa'] = Pessoa::find($id);        
+        $view['pessoa'] = Pessoa::find($id);
         return view('discentes.view', $view);
     }
 }

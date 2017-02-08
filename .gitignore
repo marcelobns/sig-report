@@ -4,6 +4,7 @@
 /vendor
 /node_modules
 /bower_components
+/public/file
 .env.php
 .env
 .DS_Store

@@ -11,9 +11,9 @@
 */
 
 Route::get('/', 'PageController@home');
+Route::get('/report', 'PageController@report');
 
 Route::get('/discentes', 'DiscenteController@index');
 Route::get('/discente/{id}', 'DiscenteController@view');
-
 
 Auth::routes();

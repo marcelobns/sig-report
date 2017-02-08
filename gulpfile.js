@@ -19,11 +19,11 @@ gulp.task('server', function () {
             scroll: false
         },
     });
-    gulp.watch(["public/**", "app/**", "resources/**", "routes/**"]).on("change", reload);
+    gulp.watch(["public/css/**", "public/js/**", "app/**", "resources/**", "routes/**"]).on("change", reload);
 });
 gulp.task('bower', ['bower-install'], function(){
     var css = gulp.src(mainBowerFiles({
-            overrides: {                
+            overrides: {
                 "jquery": {ignore : true},
                 "tether": {
                     main: ['./dist/css/tether.min.css']
