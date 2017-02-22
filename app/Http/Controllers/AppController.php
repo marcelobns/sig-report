@@ -8,7 +8,6 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class AppController extends BaseController {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
-
     public function power_up(){
         ini_set('max_execution_time', 60);
         ini_set('memory_limit', '2G');

@@ -31,14 +31,13 @@
                     </ul>
                 </nav>
             @show
-            <main class="col-sm-9">
-                <head>
-                    <h6>Relatório</h6>
+            @section('center')
+                <main class="col-sm-9">
                     <h2>@yield('title')</h2>
                     <hr>
-                </head>
-                @yield('content')
-            </main>
+                    @yield('content')
+                </main>
+            @show
             @section('after')
                 <footer class="col-sm-12 text-muted">
                     <small><i class="fa fa-cc"></i> <?=date('Y')?></small>
