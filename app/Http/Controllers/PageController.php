@@ -10,9 +10,16 @@ class PageController extends AppController {
         return view('page.home');
     }
     public function report(){
-        $result = Discente::orderBy('id_pessoa')->paginate(1);
+        $query = Discente::selectRaw('*');
+        // dd($query->toSql());
+        $result = $query->paginate(3);
+
         foreach ($result as $i => $row) {
-            var_dump($row->pessoa);
+            var_dump($row->id_discente);
+            var_dump($row->pessoa->nome);
+            var_dump($row->pessoa->municipio->nome);
+            var_dump($row->movimentacaoAluno->whereHas('id_tipo_movimentacao_aluno', '=', 1)->get());
+
         }
         return view('page.report');
     }

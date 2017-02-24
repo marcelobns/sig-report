@@ -19,4 +19,10 @@ class Pessoa extends AppModel {
     public function discente() {
         return $this->HasOne('App\Discente', 'id_pessoa');
     }
+    public function municipio() {
+        return $this->BelongsTo('App\Municipio', 'id_municipio_naturalidade');
+    }
+    public function pais() {
+        return $this->BelongsTo('App\Pais', 'id_pais_nacionalidade');
+    }
 }
