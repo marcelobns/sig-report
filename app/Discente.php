@@ -21,27 +21,19 @@ class Discente extends AppModel {
         ];
     }
     public function pessoa() {
-        return $this->BelongsTo('App\Pessoa', 'id_pessoa');
+        return $this->belongsTo('App\Pessoa', 'id_pessoa');
     }
-    public function statusDiscente() {
-        return $this->BelongsTo('App\StatusDiscente', 'status');
+    public function status_discente() {
+        return $this->belongsTo('App\StatusDiscente', 'status');
     }
     public function curso() {
-        return $this->BelongsTo('App\Curso', 'id_curso');
+        return $this->belongsTo('App\Curso', 'id_curso');
     }
-    public function discenteGraduacao() {
-        return $this->BelongsTo('App\DiscenteGraduacao', 'id_discente_graduacao');
-    }
-    public function scopeJoinPessoa($query) {
-        $query->join('comum.pessoa', 'pessoa.id_pessoa', '=', 'public.discente.id_pessoa');
-    }
-    public function scopeJoinCurso($query) {
-        $query->join('public.curso', 'curso.id_curso', '=', 'public.discente.id_curso');
-    }
-    public function scopeJoinMovimentacaoAluno($query){
-        $query->leftJoin('ensino.movimentacao_aluno', function($join) {
-            $join->on('movimentacao_aluno.id_discente', '=', 'public.discente.id_discente');
-            $join->on('movimentacao_aluno.id_tipo_movimentacao_aluno','=', DB::raw(1));
-        });
+    public function discente_graduacao() {
+        return $this->hasOne('App\DiscenteGraduacao', 'id_discente_graduacao');
+    }    
+    public function movimentacao_aluno(){
+        return $this->hasOne('App\MovimentacaoAluno', 'id_discente')
+                    ->where(['movimentacao_aluno.id_tipo_movimentacao_aluno'=>1]);
     }
 }

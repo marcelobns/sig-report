@@ -10,6 +10,9 @@ class DiscenteGraduacao extends AppModel {
     protected $primaryKey = 'id_discente_graduacao';
 
     public function curriculo() {
-        return $this->BelongsTo('App\Curriculo', 'id_matriz_curricular');
+        return $this->belongsTo('App\Curriculo', 'id_matriz_curricular');
+    }
+    public function discente() {
+        return $this->belongsTo('App\Discente', 'id_discente');
     }
 }

@@ -19,40 +19,34 @@ class Pessoa extends AppModel {
         return date('d/m/Y', strtotime($value));
     }
     public function getIdPaisNacionalidadeAttribute($value){
-        return is_null($value) ? 31 : null;
+        return is_null($value) ? 31 : $value;
     }
     public function getNacionalidadeAttribute(){
         return (is_null($this->id_pais_nacionalidade) || $this->id_pais_nacionalidade == 31) ? 1 : 3;
     }
     public function getRacaAttribute(){
         $forma_ingresso = $this->discente[0]->id_forma_ingresso;
-        switch ($this->id_raca) {
-            case 1:
-                $raca = 1;
-                break;
-            case 3:
-                $raca = 2;
-                break;            
-            default:
-                if(in_array($this->discente[0]->id_forma_ingresso, [2,11663,11662,11661,11657,11659])) {
-                    $raca = 3;
-                } elseif (in_array($this->discente[0]->id_forma_ingresso, [4, 11645,11656])) {
-                    $raca = 5;
-                } else {
-                    $raca = 6;
-                }                
-                break;
+        $racas = [
+            1 => [1],
+            2 => [3],
+            3 => [2,11663,11662,11661,11657,11659],
+            5 => [4,11645,11656]
+        ];
+        foreach ($racas as $key=>$options) {
+            if(in_array($this->id_raca, $options) 
+            || in_array($forma_ingresso, $options)){
+                return $key;
+            }
         }
-        return $raca;                
-    }
-
-    public function discente() {
-        return $this->HasMany('App\Discente', 'id_pessoa');
+        return 6;                
     }
     public function municipio() {
         return $this->BelongsTo('App\Municipio', 'id_municipio_naturalidade');
     }
     public function pais() {
         return $this->BelongsTo('App\Pais', 'id_pais_nacionalidade');
+    }
+    public function discente() {
+        return $this->HasMany('App\Discente', 'id_pessoa')->where(['nivel'=>'G'])->whereIn('status', [1, 8, 9, 5, 3]);
     }
 }
