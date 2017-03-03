@@ -13,6 +13,7 @@
 .Trashes
 .remote-sync.json
 .git
+.vscode
 
 Icon?
 ehthumbs.db

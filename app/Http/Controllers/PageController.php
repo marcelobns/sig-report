@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use \App\Pessoa;
 use \App\Discente;
 
 class PageController extends AppController {
@@ -10,17 +11,25 @@ class PageController extends AppController {
         return view('page.home');
     }
     public function report(){
-        $query = Discente::selectRaw('*');
-        // dd($query->toSql());
-        $result = $query->paginate(3);
+        $query = Pessoa::selectRaw('*');
+        $row = $query->find(503396);
 
-        foreach ($result as $i => $row) {
-            var_dump($row->id_discente);
-            var_dump($row->pessoa->nome);
-            var_dump($row->pessoa->municipio->nome);
-            var_dump($row->movimentacaoAluno->whereHas('id_tipo_movimentacao_aluno', '=', 1)->get());
+        var_dump($row->doc_estrangeiro);
+        $pessoa = [
+            'REGISTRO'=>$row->tipo_registro,
+            'COD no INEP'=>null,
+            'NOME'=>$row->nome,
+            'CPF'=>$row->cpf,
+            'DOC ESTRANGEIRO'=> ($row->id_pais_nacionalidade != 31 ? $row->passaport : null),
+            'DATA NASCIMENTO'=> str_replace('/','',$row->data_nascimento),
+            'SEXO'=> (int)($row->sexo == 'F'),
+            'RACA'=> $row->raca,
+            'NO_MAE'=> $row->nome_mae,
+            'NACIONALIDADE'=> $row->nacionalidade
+        ];
+        var_dump($pessoa);
+        $this->console($row);
 
-        }
         return view('page.report');
     }
 }

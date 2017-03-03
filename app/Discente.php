@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use DB;
+
 class Discente extends AppModel {
     protected $table = 'public.discente';
     protected $primaryKey = 'id_discente';
@@ -30,7 +31,7 @@ class Discente extends AppModel {
     }
     public function discenteGraduacao() {
         return $this->BelongsTo('App\DiscenteGraduacao', 'id_discente_graduacao');
-    }    
+    }
     public function scopeJoinPessoa($query) {
         $query->join('comum.pessoa', 'pessoa.id_pessoa', '=', 'public.discente.id_pessoa');
     }

@@ -40,4 +40,9 @@ class AppController extends BaseController {
         }
         return $filepath;
     }
+    public function console( $data ){
+      echo '<script>';
+      echo "console.log($data)";
+      echo '</script>';
+    }
 }
