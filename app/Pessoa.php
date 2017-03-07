@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use DB;
 
 class Pessoa extends AppModel {
     protected $table = 'comum.pessoa';
@@ -11,7 +12,7 @@ class Pessoa extends AppModel {
 
     public function getTipoRegistroAttribute(){
         return 41;
-    }    
+    }
     public function getCpfAttribute() {       
         return str_pad($this->cpf_cnpj, 11, '0', STR_PAD_LEFT);
     }    
@@ -25,7 +26,7 @@ class Pessoa extends AppModel {
         return (is_null($this->id_pais_nacionalidade) || $this->id_pais_nacionalidade == 31) ? 1 : 3;
     }
     public function getRacaAttribute(){
-        $forma_ingresso = $this->discente[0]->id_forma_ingresso;
+        $forma_ingresso = @$this->discente[0]->id_forma_ingresso;
         $racas = [
             1 => [1],
             2 => [3],
@@ -33,12 +34,12 @@ class Pessoa extends AppModel {
             5 => [4,11645,11656]
         ];
         foreach ($racas as $key=>$options) {
-            if(in_array($this->id_raca, $options) 
+            if(in_array($this->id_raca, $options)
             || in_array($forma_ingresso, $options)){
                 return $key;
             }
         }
-        return 6;                
+        return 6;
     }
     public function municipio() {
         return $this->BelongsTo('App\Municipio', 'id_municipio_naturalidade');
@@ -49,4 +50,13 @@ class Pessoa extends AppModel {
     public function discente() {
         return $this->HasMany('App\Discente', 'id_pessoa')->where(['nivel'=>'G'])->whereIn('status', [1, 8, 9, 5, 3]);
     }
+    public function scopeJoinDiscente($query){
+        return $query->join('public.discente', 'discente.id_pessoa', '=', 'pessoa.id_pessoa');
+    }
+    public function scopeJoinMovimentacaoAluno($query){
+        return $query->leftJoin('ensino.movimentacao_aluno', function($join){
+            $join->on('movimentacao_aluno.id_discente', '=', 'discente.id_discente');
+            $join->on('movimentacao_aluno.id_tipo_movimentacao_aluno', '=', DB::raw(1));
+        });        
+    }    
 }

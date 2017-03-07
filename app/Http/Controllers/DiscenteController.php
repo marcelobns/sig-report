@@ -53,7 +53,7 @@ class DiscenteController extends AppController {
         if (!file_exists($filepath)) {
             $file = fopen($filepath, 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($file, Discente::csvColunas(), ';');
+            fputcsv($file, ["Matricula","Ingresso","Nome","CPF","Nascimento","Situação","Curso"], ';');
             foreach ($collection as $i=>$row) {
                 fputcsv($file, [
                     $row->matricula,

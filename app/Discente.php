@@ -9,16 +9,23 @@ use DB;
 class Discente extends AppModel {
     protected $table = 'public.discente';
     protected $primaryKey = 'id_discente';
-    protected static function csvColunas() {
-        return [
-            "Matricula",
-            "Ingresso",
-            "Nome",
-            "CPF",
-            "Nascimento",
-            "Situação",
-            "Curso"
-        ];
+    
+    public function getTipoRegistroAttribute(){
+        return 42;
+    }
+    public function getVinculoStatusAttribute(){
+        $codigo = null;
+        if(in_array($this->status, [1,8,9])){
+            $codigo = 2;
+        } elseif ($this->status == 5) {
+            $codigo = 3;
+        } elseif ($this->status == 3) {
+            $codigo = 6;
+        }
+        return $codigo;
+    }
+    public function getSemestreIngressoAttribute(){
+        return str_pad($this->periodo_ingresso.$this->ano_ingresso, 6, '0', STR_PAD_LEFT);
     }
     public function pessoa() {
         return $this->belongsTo('App\Pessoa', 'id_pessoa');
@@ -35,5 +42,11 @@ class Discente extends AppModel {
     public function movimentacao_aluno(){
         return $this->hasOne('App\MovimentacaoAluno', 'id_discente')
                     ->where(['movimentacao_aluno.id_tipo_movimentacao_aluno'=>1]);
+    }
+    public function scopeJoinPessoa($query){
+        return $query->join('comum.pessoa', 'pessoa.id_pessoa', '=', 'discente.id_pessoa');
+    }
+    public function scopeJoinCurso($query){
+        return $query->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso');
     }
 }
