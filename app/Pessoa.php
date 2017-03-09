@@ -47,16 +47,14 @@ class Pessoa extends AppModel {
     public function pais() {
         return $this->BelongsTo('App\Pais', 'id_pais_nacionalidade');
     }
-    public function discente() {
-        return $this->HasMany('App\Discente', 'id_pessoa')->where(['nivel'=>'G'])->whereIn('status', [1, 8, 9, 5, 3]);
+    public function discente() {        
+        return $this->HasMany('App\Discente', 'id_pessoa')
+                    ->select('discente.*', 'movimentacao_aluno.ano_ocorrencia')                    
+                    ->leftJoin('ensino.movimentacao_aluno', function($join){
+                        $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
+                        $join->whereRaw("id_tipo_movimentacao_aluno in (1, 315)");
+                    })
+                    ->whereRaw("nivel='G' and status in (1, 8, 9, 5, 3)")
+                    ->whereRaw("(ano_ocorrencia = '2016' or ano_ocorrencia is null)");
     }
-    public function scopeJoinDiscente($query){
-        return $query->join('public.discente', 'discente.id_pessoa', '=', 'pessoa.id_pessoa');
-    }
-    public function scopeJoinMovimentacaoAluno($query){
-        return $query->leftJoin('ensino.movimentacao_aluno', function($join){
-            $join->on('movimentacao_aluno.id_discente', '=', 'discente.id_discente');
-            $join->on('movimentacao_aluno.id_tipo_movimentacao_aluno', '=', DB::raw(1));
-        });        
-    }    
 }

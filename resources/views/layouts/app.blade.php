@@ -26,15 +26,14 @@
                         <li class="list-group-item"><a href="{{url('/discentes')}}">Discentes</a></li>
                         <li class="list-group-item">Docentes</li>
                         <li class="list-group-item">Cursos</li>
-                        <li class="list-group-item"><a href="{{url('/report')}}">Relatórios</a></li>
+                        <li class="list-group-item"><a href="{{url('/censup')}}">CENSUP</a></li>
                         <li class="list-group-item">Vestibulum at eros</li>
                     </ul>
                 </nav>
             @show
             @section('center')
                 <main class="col-sm-9">
-                    <h2>@yield('title')</h2>
-                    <hr>
+                    <h2>@yield('title')</h2><hr>
                     @yield('content')
                 </main>
             @show

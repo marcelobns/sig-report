@@ -39,14 +39,7 @@ class Discente extends AppModel {
     public function discente_graduacao() {
         return $this->hasOne('App\DiscenteGraduacao', 'id_discente_graduacao');
     }    
-    public function movimentacao_aluno(){
-        return $this->hasOne('App\MovimentacaoAluno', 'id_discente')
-                    ->where(['movimentacao_aluno.id_tipo_movimentacao_aluno'=>1]);
-    }
-    public function scopeJoinPessoa($query){
-        return $query->join('comum.pessoa', 'pessoa.id_pessoa', '=', 'discente.id_pessoa');
-    }
-    public function scopeJoinCurso($query){
-        return $query->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso');
-    }
+    public function movimentacao_aluno(){        
+        return $this->hasOne('App\MovimentacaoAluno', 'id_discente');
+    }    
 }

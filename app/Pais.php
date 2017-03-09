@@ -7,9 +7,5 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Pais extends AppModel {
     protected $table = 'comum.pais';
-    protected $primaryKey = 'id_pais';
-
-    public function getCodPingifesAttribute($value){
-        return is_null($value) ? 'BRA' : $value;
-    }
+    protected $primaryKey = 'id_pais';    
 }
