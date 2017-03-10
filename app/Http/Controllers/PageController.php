@@ -12,20 +12,39 @@ class PageController extends AppController {
     }
     public function censup(){        
         $year = date('Y')-1;
-        $query = Pessoa::selectRaw('*');
-        $result = $query->whereRaw("id_pessoa in (SELECT id_pessoa FROM public.discente
-                                                LEFT JOIN ensino.movimentacao_aluno 
-                                                on movimentacao_aluno.id_discente = discente.id_discente 
-                                                WHERE id_pessoa = pessoa.id_pessoa
-                                                and id_curso is not null                                                    
-                                                and (ano_ocorrencia = '$year' or ano_ocorrencia is null)
+        $resultSet = [];
+        if(true){
+            $resultSet = Pessoa::select(
+                'pessoa.*', 
+                'municipio.id_unidade_federativa',
+                'municipio.codigo',
+                'pais.cod_pais_pingifes'
+                )
+                ->joinMunicipio()
+                ->joinPais()
+                ->whereRaw("id_pessoa in (SELECT id_pessoa FROM public.discente
+                                            WHERE id_pessoa = pessoa.id_pessoa
+                                                and ano_ingresso <= '$year'
+                                                and id_curso is not null
                                                 and nivel = 'G'
-                                                and status in (1, 8, 9, 5, 3)) ")
-                        ->orderBy('pessoa.nome')
-                        ->paginate(10);
+                                                and status in (1, 5, 8, 9)) ")
+                                                ->orderBy('nome')
+                                                ->paginate(10);
+        } else {
+            $resultSet = Pessoa::selectRaw('pessoa.*')
+                ->whereRaw("id_pessoa in (SELECT id_pessoa FROM public.discente
+                                            INNER JOIN ensino.movimentacao_aluno on movimentacao_aluno.id_discente = discente.id_discente 
+                                            WHERE id_pessoa = pessoa.id_pessoa
+                                                and ano_ingresso <= '$year'
+                                                and id_curso is not null
+                                                and ano_ocorrencia = '$year'
+                                                and nivel = 'G'
+                                                and status = 3) ")->get();
+        }
+        
         $inconsistencias = [];
         $file = ['40|789|4'];
-        foreach ($result as $key => $row) {
+        foreach ($resultSet as $key => $row) {            
             $pessoa = [
                 'REGISTRO'=>$row->tipo_registro,
                 'NOME'=>$row->nome,
@@ -36,9 +55,9 @@ class PageController extends AppController {
                 'RACA'=> $row->raca,
                 'NOME_MAE'=> $row->nome_mae,
                 'NACIONALIDADE'=> $row->nacionalidade,
-                'NASC_UF'=> @$row->municipio->id_unidade_federativa,
-                'NASC_MUNICIPIO'=> @$row->municipio->codigo,
-                'PAIS_ORIGEM'=> $row->pais->cod_pais_pingifes,
+                'NASC_UF'=> @$row->id_unidade_federativa,
+                'NASC_MUNICIPIO'=> @$row->municipio_codigo,
+                'PAIS_ORIGEM'=> $row->cod_pais_pingifes,
                 'DEFICIENTE'=> (int)!is_null($row->id_tipo_necessidade_especial),
                 'DEF_CEGUEIRA'=>0,
                 'DEF_BAIXA_VISAO'=> (int)($row->id_tipo_necessidade_especial == 2),
@@ -63,37 +82,37 @@ class PageController extends AppController {
                 } elseif($pessoa['NACIONALIDADE'] == 1) {
                     unset($pessoa['DOC_ESTRANGEIRO']);
                 }
-            }
+            }            
             array_push($file, implode('|', $pessoa));
             foreach ($row->discente as $j => $discente) {                
-                if(($row->nacionalidade == 1 && (!isset($row->municipio) OR @$row->municipio->id_unidade_federativa == -1)) || !isset($row->raca) || !isset($discente->curso->codigo_inep)){
+                if(($row->nacionalidade == 1 && (!isset($row->municipio_codigo) OR @$row->id_unidade_federativa == -1)) || !isset($row->raca)|| $discente->curso->codigo_inep == ''){
                     array_push($inconsistencias, [
                         'id_pessoa'=>$row->id_pessoa,
                         'id_discente'=>$discente->id_discente,
-                        'CURSO'=>$discente->curso->nome,
-                        'COD_INEP'=>@$discente->curso->codigo_inep,                        
+                        'CURSO'=>$discente->curso_nome,
+                        'COD_INEP'=>@$discente->curso_inep,                        
                         'CPF'=>$row->cpf,
-                        'PESSOA'=>$row->nome,                                                
+                        'PESSOA'=>$row->nome,
                         'MATRICULA'=>$discente->matricula,
                         'STATUS'=>$discente->vinculo_status,
-                        'CONCLUSAO'=>@$discente->movimentacao_aluno->ano_ocorrencia,
+                        'CONCLUSAO'=>@$discente->ano_ocorrencia,
                         'RACA'=>@$row->raca,
                         'NACIONALIDADE'=>@$row->nacionalidade,
-                        'PAIS'=> @$row->pais->cod_pais_pingifes,
-                        'UF'=>@$row->municipio->id_unidade_federativa,
-                        'MUNICIPIO'=>@$row->municipio->codigo,
+                        'PAIS'=> @$row->cod_pais_pingifes,
+                        'UF'=>@$row->id_unidade_federativa,
+                        'MUNICIPIO'=>@$row->municipio_codigo,
                     ]);
                 }                
                 $aluno = [
                     'REGISTRO'=>$discente->tipo_registro,
                     'INGRESSO_PERIODO'=>$discente->periodo_ingresso,
-                    'CURSO_INEP'=>$discente->curso->codigo_inep,
+                    'CURSO_INEP'=>$discente->curso_inep,
                     'EAD_POLO'=>@$discente->curso->polo_curso->id_polo,
                     'MATRICULA'=>$discente->matricula,
-                    'TURNO'=>$discente->curso->turno_codigo,
+                    'TURNO'=>$discente->turno_codigo,
                     'VINCULO_STATUS'=>$discente->vinculo_status,
                     'CURSO_ORIGEM'=> null,
-                    'CONCLUSAO_PERIODO'=> @$discente->movimentacao_aluno->periodo_ocorrencia,
+                    'CONCLUSAO_PERIODO'=> @$discente->periodo_ocorrencia,
                     'PARFOR'=>0,
                     'SEMESTRE_INGRESSO'=>$discente->semestre_ingresso,
                     'TIPO ESCOLA MEDIO'=>(int)in_array($discente->id_forma_ingresso, [11662,11654])+1,
@@ -121,9 +140,10 @@ class PageController extends AppController {
                     'FINANCIAMENTO'=>0,
                     // 'APOIO SOCIAL' -- VERIFICAR NA PRAE RELACAO
                     // 'ATIVIDADE EXTRACURRICULAR' -- VERIFICAR NA PRAE RELACAO
-                    'CH_CURSO'=>@$discente->discente_graduacao->curriculo->ch_total_minima,
-                    'CH_INTEGRALIZADO'=>@$discente->discente_graduacao->ch_total_integralizada
-                ];                
+                    'CH_CURSO'=>$discente->ch_total_minima,
+                    'CH_INTEGRALIZADO'=>$discente->ch_total_integralizada
+                ];
+                var_dump($aluno);
                 foreach ($aluno as $j => $value) {                    
                     if(!$aluno['MOBILIDADE_ACADEMICA'] && explode('_', $j)[0] == 'MOB'){
                         unset($aluno[$j]);

@@ -24,6 +24,23 @@ class Discente extends AppModel {
         }
         return $codigo;
     }
+    public function getTurnoCodigoAttribute(){        
+        switch (@$this->id_turno) {
+            case 1078700:
+                $codigo = 1;
+                break;
+            case 1078706:
+                $codigo = 2;
+                break;
+            case 1078702:
+                $codigo = 3;
+                break;
+            default:
+                $codigo = 4;
+                break;
+        }        
+        return $codigo;
+    }
     public function getSemestreIngressoAttribute(){
         return str_pad($this->periodo_ingresso.$this->ano_ingresso, 6, '0', STR_PAD_LEFT);
     }
@@ -36,10 +53,13 @@ class Discente extends AppModel {
     public function curso() {
         return $this->belongsTo('App\Curso', 'id_curso');
     }
+    public function polo_curso(){
+        return $this->belongsTo('App\PoloCurso', 'id_curso')->where(['id_polo'=>20356]);
+    }
     public function discente_graduacao() {
         return $this->hasOne('App\DiscenteGraduacao', 'id_discente_graduacao');
-    }    
-    public function movimentacao_aluno(){        
+    }
+    public function movimentacao_aluno(){
         return $this->hasOne('App\MovimentacaoAluno', 'id_discente');
     }    
 }

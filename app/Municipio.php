@@ -10,7 +10,7 @@ class Municipio extends AppModel {
     protected $primaryKey = 'id_municipio';
 
     public function getCodigoAttribute($value){
-        return trim(str_replace('-','',$value));        
+        return trim(str_replace('-','',$value));
     }
 }
     
