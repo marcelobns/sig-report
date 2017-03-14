@@ -48,3 +48,12 @@ h4, h5, h6 {
     text-align: center;
     z-index: 999999;
 }
+.title-padding{
+    padding: 30px;
+}
+.text-muted {
+    color: #929292!important;
+}
+.btn-page {
+    margin-top: 15px;
+}

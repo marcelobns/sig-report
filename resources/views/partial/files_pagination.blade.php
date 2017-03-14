@@ -1,0 +1,57 @@
+<div class="row">
+    <div class="col-sm-12 text-right text-muted">
+        <small>{{$paginator->total()}} registros</small>
+    </div>
+    <div class="col-sm-12">
+        @if ($paginator->hasPages())
+            {{-- Pagination Elements --}}
+            <div class="row">
+            {{-- Previous Page Link --}}
+            <div class="btn-page">                
+                @if ($paginator->onFirstPage())
+                    <span class="btn text-muted">
+                        <i class="fa fa-chevron-left"></i>
+                    </span>
+                @else
+                    <a class="btn" href="{{ $paginator->previousPageUrl() }}" rel="prev">
+                        <i class="fa fa-chevron-left"></i>
+                    </a>
+                @endif
+            </div>
+            @foreach ($elements as $element)
+                {{-- "Three Dots" Separator --}}
+                @if (is_string($element))
+                    <span class="text-muted">{{ $element }}</span>
+                @endif
+                {{-- Array Of Links --}}                
+                @if (is_array($element))
+                    @foreach ($element as $page => $url)
+                        @if ($page == $paginator->currentPage())                        
+                            <span class="btn text-primary">
+                                <i class="fa fa-file-text-o fa-3x"></i><br/>
+                                {{ $page }}
+                            </span>
+                        @else
+                            <a class="btn text-muted" href="{{ $url }}">                                
+                                <i class="fa fa-file-text-o fa-3x"></i><br/>
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endforeach
+                @endif                
+            @endforeach            
+            {{-- Next Page Link --}}
+            <div class="btn-page">                
+                @if ($paginator->hasMorePages())
+                    <a class="btn" href="{{ $paginator->nextPageUrl() }}" rel="next">
+                        <i class="fa fa-chevron-right"></i>
+                    </a>
+                @else
+                    <span class="btn text-muted">
+                        <i class="fa fa-chevron-right"></i>
+                    </span>
+                @endif
+            </div>            
+        @endif
+    </div>    
+</div>
