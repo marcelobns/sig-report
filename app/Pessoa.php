@@ -13,9 +13,9 @@ class Pessoa extends AppModel {
     public function getTipoRegistroAttribute(){
         return 41;
     }
-    public function getCpfAttribute() {       
+    public function getCpfAttribute() {
         return str_pad($this->cpf_cnpj, 11, '0', STR_PAD_LEFT);
-    }    
+    }
     public function getDataNascimentoAttribute($value) {
         return date('d/m/Y', strtotime($value));
     }
@@ -41,13 +41,15 @@ class Pessoa extends AppModel {
         }
         return 6;
     }
-    public function getMunicipioCodigoAttribute(){        
+    public function getMunicipioCodigoAttribute(){
         return trim(str_replace('-','',$this->codigo));
     }
     public function pais() {
         return $this->BelongsTo('App\Pais', 'id_pais_nacionalidade');
     }
-    public function discente() {        
+    public function discente() {
+        $current = date('Y');
+        $censo = date('Y')-1;
         return $this->HasMany('App\Discente', 'id_pessoa')
                     ->select(
                         'discente.*',
@@ -57,7 +59,8 @@ class Pessoa extends AppModel {
                         'discente_graduacao.ch_total_integralizada',
                         'curso.codigo_inep as curso_inep',
                         'curso.nome as curso_nome',
-                        'curso.id_turno'
+                        'curso.id_turno',
+                        'curso.id_modalidade_educacao'
                         )
                     ->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso')
                     ->leftJoin('graduacao.discente_graduacao', 'discente_graduacao.id_discente_graduacao', '=', 'discente.id_discente')
@@ -65,9 +68,9 @@ class Pessoa extends AppModel {
                     ->leftJoin('ensino.movimentacao_aluno', function($join){
                         $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
                         $join->whereRaw("id_tipo_movimentacao_aluno in (1, 315)");
-                    })                    
+                    })
                     ->whereRaw("discente.nivel='G' and discente.status in (1, 8, 9, 5, 3) and discente.id_curso is not null")
-                    ->whereRaw("(ano_ocorrencia = '2016' or ano_ocorrencia is null)");
+                    ->whereRaw("(ano_ocorrencia = '$censo' or (ano_ocorrencia = '$current' and id_tipo_movimentacao_aluno in (1, 315)) or ano_ocorrencia is null)");
     }
     public function scopeJoinMunicipio($query){
         return $query->leftJoin('comum.municipio', 'municipio.id_municipio', '=', 'pessoa.id_municipio_naturalidade');

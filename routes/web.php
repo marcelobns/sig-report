@@ -12,6 +12,7 @@
 
 Route::get('/', 'PageController@home');
 Route::get('/censup', 'PageController@censup');
+Route::get('/gda', 'PageController@gda');
 
 Route::get('/discentes', 'DiscenteController@index');
 Route::get('/discente/{id}', 'DiscenteController@view');

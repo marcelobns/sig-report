@@ -43,4 +43,8 @@ class AppController extends BaseController {
     public function console($data){
       echo "<script>console.log($data)</script>";
     }
+    public function translit($dirty){
+        $clean = iconv('UTF-8', 'US-ASCII//TRANSLIT', strtoupper($dirty));
+        return strtoupper(str_ireplace(['ˆ','^','\'','´','˜','~'], '', $clean));
+    }
 }

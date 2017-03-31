@@ -2,12 +2,12 @@
 @section('title', 'CENSUP - Alunos')
 @section('content')
     
-    {{$resultSet->links('partial.files_pagination')}}
-    
-    @if($inconsistencias != 0)
+    {{$pessoaPagination->links('partial.files_pagination')}}
+
+    @if(sizeof($inconsistencias) == 0)
         <h3 class="text-center title-padding">
             <a href={{asset($filename)}} download>
-                </i> Download <b>{{$year}}-alunos-{{ @$_GET['page'] ? $_GET['page'] : 1 }}.txt</b>
+                </i> Download <b>{{$censo}}-alunos-{{ @$_GET['page'] ? $_GET['page'] : 1 }}.txt</b>
             </a>
         </h3>
     @else
@@ -23,28 +23,31 @@
                     <th>Status</th>
                     <th>Raca</th>
                     <th>Nac.</th>
-                    <th>Pais</th>
+                    <th>Pais</th>                    
                     <th>UF</th>
                     <th>Município</th>
                     <th>Curso</th>
                     <th>INEP</th>
+                    <th>EXP</th>
                 </tr>
             </thead>
             <tbody>
             @foreach($inconsistencias as $item)
-                <tr>                
+                <tr>
+                    {{-- <td>'{{$item['CPF']}}',</td> --}}
                     <td>{{$item['CPF']}}</td>
                     <td>{{$item['MATRICULA']}}</td>
                     <td>{{$item['PESSOA']}}</td>
                     <td>{{$item['STATUS']}}</td>
                     <td>{{$item['RACA']}}</td>
                     <td>{{$item['NACIONALIDADE']}}</td>
-                    <td>{{$item['PAIS']}}</td>
+                    <td>{{$item['PAIS']}}</td>                    
                     <td>{{$item['UF']}}</td>
-                    <td>{{$item['MUNICIPIO']}}</td>
+                    <td>{{$item['MUNICIPIO']}}</td>                    
                     <td>{{$item['CURSO']}}</td>
                     <td>{{$item['COD_INEP']}}</td>
-                </tr>            
+                    <td>{{$item['RG_EXPEDIDOR']}}</td>
+                </tr>
             @endforeach
             </tbody>
         </table>

@@ -23,6 +23,7 @@
                         <img src='{{asset('public/img/ufrr-brasao.svg')}}'/>
                     </a>
                     <ul class="list-group">
+                        <li class="list-group-item"><a href="{{url('/index')}}">Índices</a></li>
                         <li class="list-group-item"><a href="{{url('/discentes')}}">Discentes</a></li>
                         <li class="list-group-item">Docentes</li>
                         <li class="list-group-item">Cursos</li>
