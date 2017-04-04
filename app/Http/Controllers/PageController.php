@@ -42,7 +42,7 @@ class PageController extends AppController {
                                             and nivel = 'G'
                                             and status = 3) ")
                                             ->orderBy('nome')
-                                            ->paginate(350);
+                                            ->paginate(4000);
 
         $apoio_social = $this->read_file("public/file/Apoio-Social.csv");
         $atividade_extra = $this->read_file("public/file/Atividade-Extracurricular.csv");
@@ -83,35 +83,36 @@ class PageController extends AppController {
                 }
                 if($pessoa['NACIONALIDADE'] != 1 && explode('_', $i)[0] == 'NASC'){
                     $pessoa[$i] = null;
-                } elseif($pessoa['NACIONALIDADE'] == 1) {
+                }
+                elseif($pessoa['NACIONALIDADE'] == 1) {
                     $pessoa['DOC_ESTRANGEIRO'] = null;
                 }
             }
             array_push($file, implode('|', $pessoa).PHP_EOL);
             foreach ($row->discente as $j => $discente) {
-                if(($row->nacionalidade == 1
-                    && (!isset($row->municipio_codigo) OR @$row->id_unidade_federativa == -1))
-                        || !isset($row->raca)
-                        || $discente->curso_inep == ''
-                        || $discente->ano_ingresso == $current){
-                    array_push($inconsistencias, [
-                        'id_pessoa'=>$row->id_pessoa,
-                        'id_discente'=>$discente->id_discente,
-                        'CURSO'=>$discente->curso_nome,
-                        'COD_INEP'=>@$discente->curso_inep,
-                        'CPF'=>$row->cpf,
-                        'PESSOA'=>$row->nome,
-                        'MATRICULA'=>$discente->matricula,
-                        'STATUS'=>$discente->vinculo_status,
-                        'CONCLUSAO'=>@$discente->ano_ocorrencia,
-                        'RACA'=>@$row->raca,
-                        'NACIONALIDADE'=>@$row->nacionalidade,
-                        'PAIS'=> @$row->cod_pais_pingifes,
-                        'UF'=>@$row->id_unidade_federativa,
-                        'MUNICIPIO'=>@$row->municipio_codigo,
-                        'RG_EXPEDIDOR'=>@$row->orgao_expedicao_identidade
-                    ]);
-                }
+                // if(($row->nacionalidade == 1
+                //     && (!isset($row->municipio_codigo) OR @$row->id_unidade_federativa == -1))
+                //         || !isset($row->raca)
+                //         || $discente->curso_inep == ''
+                //         || $discente->ano_ingresso == $current){
+                //     array_push($inconsistencias, [
+                //         'id_pessoa'=>$row->id_pessoa,
+                //         'id_discente'=>$discente->id_discente,
+                //         'CURSO'=>$discente->curso_nome,
+                //         'COD_INEP'=>@$discente->curso_inep,
+                //         'CPF'=>$row->cpf,
+                //         'PESSOA'=>$row->nome,
+                //         'MATRICULA'=>$discente->matricula,
+                //         'STATUS'=>$discente->vinculo_status,
+                //         'CONCLUSAO'=>@$discente->ano_ocorrencia,
+                //         'RACA'=>@$row->raca,
+                //         'NACIONALIDADE'=>@$row->nacionalidade,
+                //         'PAIS'=> @$row->cod_pais_pingifes,
+                //         'UF'=>@$row->id_unidade_federativa,
+                //         'MUNICIPIO'=>@$row->municipio_codigo,
+                //         'RG_EXPEDIDOR'=>@$row->orgao_expedicao_identidade
+                //     ]);
+                // }
                 $has_apoio_social = in_array($row->cpf_cnpj, $apoio_social);
                 $has_atividade_extra = in_array($row->cpf_cnpj, $atividade_extra);
 
@@ -136,10 +137,10 @@ class PageController extends AppController {
                     'INGR AVALIACAO SERIADA'=> 0,
                     'INGR SELECAO SIMPLIFICADA'=> (int)in_array($discente->id_forma_ingresso, [37350,11645]),
                     'INGR EGRESSO BI/LI'=>0,
-                    'INGR PEC-G'=>(int)in_array($discente->id_forma_ingresso, [34117]),
+                    'INGR PEC-G'=>(int)in_array($discente->id_forma_ingresso, [34117,34130]),
                     'INGR TRANS EX OFICIO'=>(int)in_array($discente->id_forma_ingresso, [11644,11639,11642]),
-                    'INGR DECIS JUDICIAl'=>0,
-                    'INGR VAGAS REMANESC'=>(int)in_array($discente->id_forma_ingresso, [1697747,11643]),
+                    'INGR DECIS JUDICIAl'=>(int)in_array($discente->id_forma_ingresso, [6517]),
+                    'INGR VAGAS REMANESC'=>(int)in_array($discente->id_forma_ingresso, [1697747,11643,11649,34131]),
                     'INGR VAGAS PROG. ESPECIAIS'=>(int)in_array($discente->id_forma_ingresso, [34116]),
                     'MOBILIDADE_ACADEMICA'=>($discente->vinculo_status == 2 ? 0 : null), // VERIFICAR, MOBILIDADE : CRINT e PROEG
                     'MOB_TIPO'=>null,
@@ -201,9 +202,9 @@ class PageController extends AppController {
         $page = @$_GET['page'] ? $_GET['page'] : 1;
         $filename = "public/file/$censo-alunos-$page.txt";
 
-        if(sizeof($inconsistencias) == 0){
+        // if(sizeof($inconsistencias) == 0){
             file_put_contents($filename, $file);
-        }
+        // }
         $view = [
             'inconsistencias'=>$inconsistencias,
             'pessoaPagination'=>$pessoaPagination,

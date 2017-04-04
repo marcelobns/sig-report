@@ -23,7 +23,13 @@ class Pessoa extends AppModel {
         return is_null($value) ? 31 : $value;
     }
     public function getNacionalidadeAttribute(){
-        return (is_null($this->id_pais_nacionalidade) || $this->id_pais_nacionalidade == 31) ? 1 : 3;
+        if(@$this->discente[0]->id_forma_ingresso == 34117) {
+            return 3;
+        }
+        else {
+            return (is_null($this->id_pais_nacionalidade)
+                    || $this->id_pais_nacionalidade == 31) ? 1 : 3;
+        }
     }
     public function getRacaAttribute(){
         $forma_ingresso = @$this->discente[0]->id_forma_ingresso;
