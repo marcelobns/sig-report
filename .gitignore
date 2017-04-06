@@ -4,14 +4,14 @@
 /vendor
 /node_modules
 /bower_components
-#/public/file
+/public/file
 .env.php
 .env
 .DS_Store
 .DS_Store?
 .Spotlight-V100
 .Trashes
-.remote-sync.json
+#.remote-sync.json
 .git
 .vscode
 

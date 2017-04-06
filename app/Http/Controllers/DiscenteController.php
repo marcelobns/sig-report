@@ -25,7 +25,7 @@ class DiscenteController extends AppController {
             $query->whereRaw("ano_ingresso||'.'||periodo_ingresso = '{$input->periodo}'");
         }
         if(!empty($input->search_text)){
-            //FIXME por cpf não está funcionando
+            //FIXME:20 por cpf não está funcionando
             $query->where(function($query) use ($input){
                 $query->orWhere('pessoa.nome', 'ilike', "%$input->search_text%");
                 $query->orWhereRaw("cast(pessoa.cpf_cnpj as text) like '$input->search_text'");
@@ -74,4 +74,4 @@ class DiscenteController extends AppController {
         return view('discentes.view', $view);
     }
 }
-// TODO: Filtrar e mostrar por estrutura curricular
+// TODO:20 Filtrar e mostrar por estrutura curricular

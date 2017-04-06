@@ -9,7 +9,7 @@ use DB;
 class Discente extends AppModel {
     protected $table = 'public.discente';
     protected $primaryKey = 'id_discente';
-    
+
     public function getTipoRegistroAttribute(){
         return 42;
     }
@@ -21,10 +21,12 @@ class Discente extends AppModel {
             $codigo = 3;
         } elseif ($this->status == 3) {
             $codigo = 6;
+        }elseif ($this->status == 6) {
+            $codigo = 4;
         }
         return $codigo;
     }
-    public function getTurnoCodigoAttribute(){        
+    public function getTurnoCodigoAttribute(){
         switch (@$this->id_turno) {
             case 1078700:
                 $codigo = 1;
@@ -35,10 +37,13 @@ class Discente extends AppModel {
             case 1078702:
                 $codigo = 3;
                 break;
+            case 1078707:
+                $codigo = 3;
+                break;
             default:
                 $codigo = 4;
                 break;
-        }        
+        }
         return $codigo;
     }
     public function getSemestreIngressoAttribute(){
@@ -61,5 +66,5 @@ class Discente extends AppModel {
     }
     public function movimentacao_aluno(){
         return $this->hasOne('App\MovimentacaoAluno', 'id_discente');
-    }    
+    }
 }

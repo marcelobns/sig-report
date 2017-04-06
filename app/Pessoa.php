@@ -45,6 +45,9 @@ class Pessoa extends AppModel {
                 return $key;
             }
         }
+        if(@$this->discente[0]->ano_ingresso >= 2014){
+            return 3;
+        }
         return 6;
     }
     public function getMunicipioCodigoAttribute(){
@@ -75,7 +78,7 @@ class Pessoa extends AppModel {
                         $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
                         $join->whereRaw("id_tipo_movimentacao_aluno in (1, 315)");
                     })
-                    ->whereRaw("discente.nivel='G' and discente.status in (1, 8, 9, 5, 3) and discente.id_curso is not null")
+                    ->whereRaw("discente.nivel='G' and discente.status in (1, 8, 9, 5, 3) and discente.id_curso is not null and discente.ano_ingresso <= '$censo' ")
                     ->whereRaw("(ano_ocorrencia = '$censo' or (ano_ocorrencia = '$current' and id_tipo_movimentacao_aluno in (1, 315)) or ano_ocorrencia is null)");
     }
     public function scopeJoinMunicipio($query){

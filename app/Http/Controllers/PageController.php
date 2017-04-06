@@ -36,16 +36,17 @@ class PageController extends AppController {
             ->orWhereRaw("id_pessoa in (SELECT id_pessoa FROM public.discente
                                         INNER JOIN ensino.movimentacao_aluno on movimentacao_aluno.id_discente = discente.id_discente
                                         WHERE id_pessoa = pessoa.id_pessoa
-                                            and ano_ingresso <= '$censo'
                                             and id_curso is not null
-                                            and ano_ocorrencia = '$censo'
+                                            and ano_ingresso <= '$censo'
+                                            and (ano_ocorrencia = '$censo' or ano_ocorrencia = '$current')
                                             and nivel = 'G'
                                             and status = 3) ")
                                             ->orderBy('nome')
                                             ->paginate(4000);
 
-        $apoio_social = $this->read_file("public/file/Apoio-Social.csv");
-        $atividade_extra = $this->read_file("public/file/Atividade-Extracurricular.csv");
+        $apoio_social = $this->read_file("public/file/Apoio-Social.csv", [2]);
+        $atividade_extra = $this->read_file("public/file/Atividade-Extracurricular.csv", [2]);
+        $mobilidade_estudantil = $this->read_file("public/file/Mobilidade-Estudantil.csv", [2,3,4]);
 
         foreach ($pessoaPagination as $key => $row) {
             $pessoa = [
@@ -90,6 +91,7 @@ class PageController extends AppController {
             }
             array_push($file, implode('|', $pessoa).PHP_EOL);
             foreach ($row->discente as $j => $discente) {
+                //FIXME:0 tratar inconsistencias
                 // if(($row->nacionalidade == 1
                 //     && (!isset($row->municipio_codigo) OR @$row->id_unidade_federativa == -1))
                 //         || !isset($row->raca)
@@ -115,15 +117,16 @@ class PageController extends AppController {
                 // }
                 $has_apoio_social = in_array($row->cpf_cnpj, $apoio_social);
                 $has_atividade_extra = in_array($row->cpf_cnpj, $atividade_extra);
-
+                $has_mobilidade = in_array($row->cpf_cnpj, $mobilidade_estudantil);
+                $escola_publica = is_null($row->escola_publica) ? ((int) !in_array($discente->id_forma_ingresso, [11662,11654]))+1 : (int)$row->escola_publica;
                 $aluno = [
                     'REGISTRO'=>$discente->tipo_registro,
-                    'INGRESSO_PERIODO'=>$discente->periodo_ingresso,
-                    'CURSO_INEP'=>$discente->curso_inep,
+                    'SEMESTRE_REFERENCIA'=> $discente->ano_ingresso == $censo ? $discente->periodo_ingresso : 1,
+                    'CODIGO_CURSO'=>$discente->curso_inep,
                     'EAD_POLO'=> $discente->id_modalidade_educacao == 2 ? 1033528 : null,
                     'MATRICULA'=>$discente->matricula,
                     'TURNO'=>$discente->id_modalidade_educacao != 2 ? $discente->turno_codigo : null,
-                    'VINCULO_STATUS'=>$discente->vinculo_status,
+                    'SITUACAO_VINCULO'=>$discente->vinculo_status,
                     'CURSO_ORIGEM'=> null,
                     'CONCLUSAO_PERIODO'=> null,
                     'PARFOR'=> in_array($discente->curso_inep, [5001023,1156313,118566,1186297,
@@ -131,7 +134,7 @@ class PageController extends AppController {
                                                                 22532,31230,22533,31229,68225,68226,
                                                                 68228,1185309,118564,1259131,16902,16896]) ? 0 : null,
                     'SEMESTRE_INGRESSO'=> $discente->semestre_ingresso,
-                    'TIPO ESCOLA MEDIO'=>is_null($row->escola_publica) ? ((int) !in_array($discente->id_forma_ingresso, [11662,11654]))+1 : (int)$row->escola_publica,
+                    'TIPO ESCOLA MEDIO'=> ($escola_publica == 2 && $discente->ano_ingresso >= 2013) ? 1 : $escola_publica,
                     'INGR VESTIBULAR'=> (int)in_array($discente->id_forma_ingresso, [34110,11657,11656,11650,11658,11655,11659,11660]),
                     'INGR ENEM'=> (int)in_array($discente->id_forma_ingresso, [51252808,11663,11662,11654,11652,11653,11661]),
                     'INGR AVALIACAO SERIADA'=> 0,
@@ -140,13 +143,13 @@ class PageController extends AppController {
                     'INGR PEC-G'=>(int)in_array($discente->id_forma_ingresso, [34117,34130]),
                     'INGR TRANS EX OFICIO'=>(int)in_array($discente->id_forma_ingresso, [11644,11639,11642]),
                     'INGR DECIS JUDICIAl'=>(int)in_array($discente->id_forma_ingresso, [6517]),
-                    'INGR VAGAS REMANESC'=>(int)in_array($discente->id_forma_ingresso, [1697747,11643,11649,34131]),
-                    'INGR VAGAS PROG. ESPECIAIS'=>(int)in_array($discente->id_forma_ingresso, [34116]),
-                    'MOBILIDADE_ACADEMICA'=>($discente->vinculo_status == 2 ? 0 : null), // VERIFICAR, MOBILIDADE : CRINT e PROEG
-                    'MOB_TIPO'=>null,
-                    'MOB_DESTINO'=>null,
-                    'MOB_INTERNACIONAL'=>null,
-                    'MOB_PAIS_DESTINO'=>null,
+                    'INGR VAGAS REMANESC'=>0,
+                    'INGR VAGAS PROG. ESPECIAIS'=>(int)in_array($discente->id_forma_ingresso, [34116,1697747,11643,11649,34131]),
+                    'MOBILIDADE_ACADEMICA'=>($discente->vinculo_status == 2 ? (int)$has_mobilidade : null), // VERIFICAR, MOBILIDADE : CRINT e PROEG
+                    'MOB_TIPO'=> $has_mobilidade ? $apoio_social[$row->cpf_cnpj][0] : null,
+                    'MOB_IES_DESTINO'=> $has_mobilidade ? $apoio_social[$row->cpf_cnpj][1] : null,
+                    'MOB_INTER_TIPO'=> $has_mobilidade ? $apoio_social[$row->cpf_cnpj][2] : null,
+                    'MOB_INTER_PAIS_DESTINO'=> $has_mobilidade ? $apoio_social[$row->cpf_cnpj][3] : null,
                     'PROGRAMA DE RESERVAS'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11654,11652,11653, 11661,11657,11656,11650,11655,11659,11660,11645]),
                     'RESERVA_ETNICA'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11661,11645,11650,11657,11656,11659]),
                     'RESERVA_PCD'=>(int)in_array($discente->id_forma_ingresso, [11652,11655]),
@@ -202,6 +205,7 @@ class PageController extends AppController {
         $page = @$_GET['page'] ? $_GET['page'] : 1;
         $filename = "public/file/$censo-alunos-$page.txt";
 
+        //FIXME: escrever o arquivo apenas se não houver
         // if(sizeof($inconsistencias) == 0){
             file_put_contents($filename, $file);
         // }
@@ -213,18 +217,19 @@ class PageController extends AppController {
         ];
         return view('page.censup', $view);
     }
-    public function read_file($filepath){
+    public function read_file($filepath, $columns = []){
         ini_set("auto_detect_line_endings", "1");
 
         $pessoas = [];
         $handle = fopen($filepath, "r");
         while (($line = fgetcsv($handle, 0, ";")) !== FALSE) {
             $i = (int)$line[0];
-
-            if(!isset($pessoas[$i]))
+            if(!isset($pessoas[$i])){
                 $pessoas[$i] = [];
-
-            array_push($pessoas[$i], $line[2]);
+            }
+            foreach ($columns as $j=>$c) {
+                array_push($pessoas[$i], $line[$c]);
+            }
         }
         fclose($handle);
         return $pessoas;
