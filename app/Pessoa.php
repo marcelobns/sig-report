@@ -40,8 +40,10 @@ class Pessoa extends AppModel {
             5 => [4,11645,11656]
         ];
         foreach ($racas as $key=>$options) {
-            if(in_array($this->id_raca, $options)
-            || in_array($forma_ingresso, $options)){
+            if(in_array($this->id_raca, $options)){
+                return $key;
+            }
+            if(in_array($forma_ingresso, $options)){
                 return $key;
             }
         }

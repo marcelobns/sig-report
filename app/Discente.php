@@ -47,6 +47,7 @@ class Discente extends AppModel {
         return $codigo;
     }
     public function getSemestreIngressoAttribute(){
+        $this->periodo_ingresso = $this->periodo_ingresso > 2 ? 2 : $this->periodo_ingresso;
         return str_pad($this->periodo_ingresso.$this->ano_ingresso, 6, '0', STR_PAD_LEFT);
     }
     public function pessoa() {
