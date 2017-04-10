@@ -66,7 +66,6 @@ class PageController extends AppController {
             ->orderBy('pessoa.nome_oficial')
             ->paginate(1500)
             ;
-            // dd($pessoaPagination->toSql());
 
         $apoio_social = $this->read_file("public/file/Apoio-Social.csv", [2]);
         $atividade_extra = $this->read_file("public/file/Atividade-Extracurricular.csv", [2]);
@@ -191,12 +190,6 @@ class PageController extends AppController {
                         $atividade_extensao = $has_atividade_extra ? (int)(in_array("EXTENSAO", $atividade_extra[$row->cpf_cnpj]) || in_array("EXTENSAO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
                         $atividade_monitoria = $has_atividade_extra ? (int)(in_array("MONITORIA", $atividade_extra[$row->cpf_cnpj]) || in_array("MONITORIA_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
                         $atividade_estagio = $has_atividade_extra ? (int)(in_array("ESTAGIO", $atividade_extra[$row->cpf_cnpj]) || in_array("ESTAGIO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
-
-
-
-
-
-
 
                         $aluno = [
                             'REGISTRO'=>$discente->tipo_registro,
