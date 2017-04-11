@@ -58,30 +58,8 @@ class Pessoa extends AppModel {
     public function pais() {
         return $this->BelongsTo('App\Pais', 'id_pais_nacionalidade');
     }
-    public function discente() {
-        $current = date('Y');
-        $censo = date('Y')-1;
-        return $this->HasMany('App\Discente', 'id_pessoa')
-                    ->select(
-                        'discente.*',
-                        'movimentacao_aluno.ano_ocorrencia',
-                        'movimentacao_aluno.periodo_ocorrencia',
-                        'curriculo.ch_total_minima',
-                        'discente_graduacao.ch_total_integralizada',
-                        'curso.codigo_inep as curso_inep',
-                        'curso.nome as curso_nome',
-                        'curso.id_turno',
-                        'curso.id_modalidade_educacao'
-                        )
-                    ->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso')
-                    ->leftJoin('graduacao.discente_graduacao', 'discente_graduacao.id_discente_graduacao', '=', 'discente.id_discente')
-                    ->leftJoin('graduacao.curriculo', 'curriculo.id_matriz', '=', 'discente_graduacao.id_matriz_curricular')
-                    ->leftJoin('ensino.movimentacao_aluno', function($join){
-                        $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
-                        $join->whereRaw("id_tipo_movimentacao_aluno in (1, 315)");
-                    })
-                    ->whereRaw("discente.nivel='G' and discente.status in (1, 8, 9, 5, 3) and discente.id_curso is not null and discente.ano_ingresso <= '$censo' ")
-                    ->whereRaw("(ano_ocorrencia = '$censo' or (ano_ocorrencia = '$current' and id_tipo_movimentacao_aluno in (1, 315)) or ano_ocorrencia is null)");
+    public function discente() {        
+        return $this->HasMany('App\Discente', 'id_pessoa');
     }
     public function scopeJoinMunicipio($query){
         return $query->leftJoin('comum.municipio', 'municipio.id_municipio', '=', 'pessoa.id_municipio_naturalidade');

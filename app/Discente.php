@@ -21,7 +21,7 @@ class Discente extends AppModel {
             $codigo = 3;
         } elseif ($this->status == 3) {
             $codigo = 6;
-        }elseif ($this->status == 6) {
+        } elseif ($this->status == 6) {
             $codigo = 4;
         }
         return $codigo;
