@@ -14,17 +14,18 @@ class Discente extends AppModel {
         return 42;
     }
     public function getVinculoStatusAttribute(){
-        $codigo = null;
-        if(in_array($this->status, [1,8,9])){
-            $codigo = 2;
+        if ($this->status == null) {
+            $status = 2;
         } elseif ($this->status == 5) {
-            $codigo = 3;
+            $status = 3;
         } elseif ($this->status == 3) {
-            $codigo = 6;
+            $status = 6;
         } elseif ($this->status == 6) {
-            $codigo = 4;
+            $status = 4;
+        } elseif ($this->status == 9) {
+            $status = 4;
         }
-        return $codigo;
+        return $status;
     }
     public function getTurnoCodigoAttribute(){
         switch (@$this->id_turno) {

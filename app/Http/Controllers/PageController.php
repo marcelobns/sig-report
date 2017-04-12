@@ -15,64 +15,45 @@ class PageController extends AppController {
         $censo = $current-1;
         $file = ['40|789|4'.PHP_EOL];
         $inconsistencias = [];
-
+//TODO: utilizar scope
         $pessoaPagination = Pessoa::select(
-                'pessoa.id_pessoa',
-                'pessoa.cpf_cnpj',
-                'pessoa.nome_oficial',
-                'pessoa.nome_mae',
-                'pessoa.passaporte',
-                'pessoa.data_nascimento',
-                'pessoa.id_pais_nacionalidade',
-                'pessoa.id_tipo_necessidade_especial',
-                'discente.matricula',
-                'discente.ano_ingresso',
-                'municipio.id_unidade_federativa',
-                'municipio.codigo'
-            )
-            ->selectRaw("COALESCE(pais.cod_pais_pingifes, 'BRA') as cod_pais_pingifes")
-            ->selectRaw(" sum(componente_curricular_detalhes.ch_total) as ch_periodo")
-            ->joinMunicipio()
-            ->joinPais()
-            ->join('public.discente', 'discente.id_pessoa', '=', 'pessoa.id_pessoa')
-            ->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso')
-            ->leftJoin('ensino.matricula_componente', function($join) use ($censo){
-                $join->whereRaw("matricula_componente.id_discente = discente.id_discente");
-                $join->whereRaw("matricula_componente.ano = $censo");
-                $join->whereRaw("matricula_componente.id_situacao_matricula in (4,22,24)");
-            })
-            ->leftJoin('ensino.componente_curricular_detalhes', 'componente_curricular_detalhes.id_componente_detalhes', '=', 'matricula_componente.id_componente_detalhes')
-            ->whereRaw("(discente.ano_ingresso <= $censo and curso.ativo = true and discente.nivel = 'G' and discente.status not in (14, 2, 12, -1, 11, 6, 10, 13, 15, 3) )")
-            ->orWhereRaw("(curso.ativo = true and discente.id_discente in (
-                    SELECT id_discente
-                    FROM ensino.movimentacao_aluno
-                    WHERE id_tipo_movimentacao_aluno in (1, 315) and ano_ocorrencia = $censo
-                ))")
-            ->groupBy(
-                'pessoa.id_pessoa',
-                'pessoa.cpf_cnpj',
-                'pessoa.nome_oficial',
-                'pessoa.nome_mae',
-                'pessoa.passaporte',
-                'pessoa.data_nascimento',
-                'pessoa.id_pais_nacionalidade',
-                'pessoa.id_tipo_necessidade_especial',
-                'discente.matricula',
-                'discente.ano_ingresso',
-                'municipio.id_unidade_federativa',
-                'municipio.codigo',
-                'pais.cod_pais_pingifes'
-                )
+                    'pessoa.id_pessoa',
+                    'pessoa.cpf_cnpj',
+                    'pessoa.sexo',
+                    'pessoa.nome_oficial',
+                    'pessoa.nome_mae',
+                    'pessoa.passaporte',
+                    'pessoa.data_nascimento',
+                    'pessoa.id_pais_nacionalidade',
+                    'pessoa.id_tipo_necessidade_especial',
+                    'discente.matricula',
+                    'discente.ano_ingresso',
+                    'municipio.id_unidade_federativa',
+                    'municipio.codigo')
+                    ->selectRaw("COALESCE(pais.cod_pais_pingifes, 'BRA') as cod_pais_pingifes")
+                    ->joinMunicipio()
+                    ->joinPais()
+                    ->join('public.discente', 'discente.id_pessoa', '=', 'pessoa.id_pessoa')
+                    ->whereRaw("discente.matricula in (
+                        SELECT discente.matricula
+                        FROM comum.pessoa pessoa
+                        INNER JOIN public.discente discente on discente.id_pessoa = pessoa.id_pessoa
+                        INNER JOIN graduacao.curriculo curriculo on curriculo.id_curriculo = discente.id_curriculo
+                        INNER JOIN graduacao.matriz_curricular matriz on matriz.id_matriz_curricular = curriculo.id_matriz
+                        INNER JOIN graduacao.habilitacao habilitacao on habilitacao.id_habilitacao = matriz.id_habilitacao
+                        LEFT JOIN ensino.matricula_componente matricula on matricula.id_discente = discente.id_discente and matricula.ano = $censo
+                        LEFT JOIN ensino.movimentacao_aluno movimento on movimento.id_discente = discente.id_discente and movimento.ano_referencia = $censo
+                        LEFT JOIN ensino.tipo_movimentacao_aluno tipo_movimento on tipo_movimento.id_tipo_movimentacao_aluno = movimento.id_tipo_movimentacao_aluno
+                        WHERE discente.nivel = 'G' and matricula.periodo <= 2
+                        GROUP BY discente.matricula)")
             ->orderBy('pessoa.nome_oficial')
-            ->paginate(1500)
-            ;
-
+            ->paginate(2500);
         $apoio_social = $this->read_file("public/file/Apoio-Social.csv", [2]);
         $atividade_extra = $this->read_file("public/file/Atividade-Extracurricular.csv", [2]);
         $mobilidade_estudantil = $this->read_file("public/file/Mobilidade-Estudantil.csv", [2,3,4,5]);
-        $last_cpf = null;
+
         foreach ($pessoaPagination as $key => $row) {
-            if($last_cpf != $row->cpf_cnpj){
+            if(@$cpf_cnpj != $row->cpf_cnpj){
                 $pessoa = [
                     'REGISTRO'=>$row->tipo_registro,
                     'ALUNO_INEP'=>null,
@@ -115,165 +96,185 @@ class PageController extends AppController {
                 }
                 array_push($file, implode('|', $pessoa).PHP_EOL);
             }
-            $last_cpf = $row->cpf_cnpj;
+            $cpf_cnpj = $row->cpf_cnpj;
 
+            $discentes = Discente::select(
+                    'discente.id_discente',
+                    'discente.matricula',
+                    'discente.id_forma_ingresso',
+                    'discente.ano_ingresso',
+                    'discente.periodo_ingresso',
+                    'matricula_componente.ano',
+                    'matricula_componente.periodo',
+                    'curriculo.ch_total_minima',
+                    'discente_graduacao.ch_total_integralizada',
+                    'habilitacao.codigo_habilitacao_inep as codigo_inep',
+                    'matriz_curricular.id_turno',
+                    'curso.dt_inicio_funcionamento',
+                    'curso.id_modalidade_educacao'
+                )
+                ->selectRaw("CASE tipo_movimento.id_tipo_movimentacao_aluno = 315
+                                WHEN true THEN 9
+                                WHEN false THEN tipo_movimento.statusdiscente
+                            END as status")
+                ->selectRaw("
+                    (SELECT sum(ch_total)
+                    FROM ensino.matricula_componente matricula
+                    LEFT JOIN ensino.componente_curricular_detalhes detalhes on detalhes.id_componente_detalhes = matricula.id_componente_detalhes
+                    WHERE matricula.ano = matricula_componente.ano and matricula.periodo = matricula_componente.periodo and matricula.id_discente = discente.id_discente
+                        and matricula.id_situacao_matricula in (4,22,24)
+                    ) as ch_periodo
+                ")
+                ->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso')
+                ->join('graduacao.discente_graduacao', 'discente_graduacao.id_discente_graduacao', '=', 'discente.id_discente')
+                ->join('graduacao.curriculo', 'curriculo.id_matriz', '=', 'discente_graduacao.id_matriz_curricular')
+                ->join('graduacao.matriz_curricular', 'matriz_curricular.id_matriz_curricular', '=', 'curriculo.id_matriz')
+                ->join('graduacao.habilitacao', 'habilitacao.id_habilitacao', '=', 'matriz_curricular.id_habilitacao')
+                ->leftJoin('ensino.matricula_componente', function($join) use ($censo){
+                    $join->whereRaw("matricula_componente.id_discente = discente.id_discente");
+                    $join->whereRaw("matricula_componente.ano = $censo ");
+                })
+                ->leftJoin('ensino.movimentacao_aluno', function($join)use ($censo){
+                    $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
+                    $join->whereRaw("ano_ocorrencia = $censo ");
+                })
+                ->leftJoin('ensino.tipo_movimentacao_aluno', function($join)use ($censo){
+                    $join->whereRaw("tipo_movimentacao_aluno.id_tipo_movimentacao_aluno = movimentacao_aluno.id_tipo_movimentacao_aluno");
+                    $join->whereRaw("tipo_movimentacao_aluno.statusdiscente in (10,17,101,308,315)");
+                })
+                ->leftJoin('ensino.componente_curricular_detalhes', 'componente_curricular_detalhes.id_componente_detalhes', '=', 'matricula_componente.id_componente_detalhes')
+                ->whereRaw("discente.matricula = {$row->matricula}")
+                ->groupBy(
+                        'discente.id_discente',
+                        'discente.matricula',
+                        'tipo_movimentacao_aluno.statusdiscente',
+                        'discente.id_forma_ingresso',
+                        'discente.ano_ingresso',
+                        'discente.periodo_ingresso',
+                        'matricula_componente.ano',
+                        'matricula_componente.periodo',
+                        'curriculo.ch_total_minima',
+                        'discente_graduacao.ch_total_integralizada',
+                        'habilitacao.codigo_habilitacao_inep',
+                        'matriz_curricular.id_turno',
+                        'curso.dt_inicio_funcionamento',
+                        'curso.id_modalidade_educacao'
+                    )
+                    ->orderBy('matricula_componente.periodo', 'desc')
+                    ->get();
+            $periodo = 0;
             $ch_periodo = 0;
-            for ($periodo=2; $periodo >= 1; $periodo--) {
-                //TODO: utilizar scope
-                $discentes = Discente::select(
-                            'discente.matricula',
-                            'discente.status',
-                            'discente.id_forma_ingresso',
-                            'discente.ano_ingresso',
-                            'discente.periodo_ingresso',
-                            'movimentacao_aluno.ano_ocorrencia',
-                            'movimentacao_aluno.periodo_ocorrencia',
-                            'curriculo.ch_total_minima',
-                            'discente_graduacao.ch_total_integralizada',
-                            'curso.codigo_inep as curso_inep',
-                            'curso.nome as curso_nome',
-                            'curso.id_turno',
-                            'curso.id_modalidade_educacao',
-                            'curso.dt_inicio_funcionamento'
-                        )
-                        ->selectRaw(" sum(componente_curricular_detalhes.ch_total) as ch_periodo")
-                        ->join('public.curso', 'curso.id_curso', '=', 'discente.id_curso')
-                        ->leftJoin('graduacao.discente_graduacao', 'discente_graduacao.id_discente_graduacao', '=', 'discente.id_discente')
-                        ->leftJoin('graduacao.curriculo', 'curriculo.id_matriz', '=', 'discente_graduacao.id_matriz_curricular')
-                        ->leftJoin('ensino.movimentacao_aluno', function($join)use ($censo, $periodo){
-                            $join->whereRaw("movimentacao_aluno.id_discente = discente.id_discente");
-                            $join->whereRaw("id_tipo_movimentacao_aluno in (1, 315)");
-                            $join->whereRaw("ano_ocorrencia = '$censo' and periodo_ocorrencia = '$periodo'");
-                        })
-                        ->leftJoin('ensino.matricula_componente', function($join) use ($censo, $periodo){
-                            $join->whereRaw("matricula_componente.id_discente = discente.id_discente");
-                            $join->whereRaw("matricula_componente.ano = $censo and matricula_componente.periodo = $periodo");
-                            $join->whereRaw("matricula_componente.id_situacao_matricula in (4,22,24)");
-                        })
-                        ->leftJoin('ensino.componente_curricular_detalhes', 'componente_curricular_detalhes.id_componente_detalhes', '=', 'matricula_componente.id_componente_detalhes')
-                        ->whereRaw("discente.matricula = {$row->matricula}")
-                        ->groupBy(
-                                    'discente.matricula',
-                                    'discente.status',
-                                    'discente.id_forma_ingresso',
-                                    'discente.ano_ingresso',
-                                    'discente.periodo_ingresso',
-                                    'movimentacao_aluno.ano_ocorrencia',
-                                    'movimentacao_aluno.periodo_ocorrencia',
-                                    'curriculo.ch_total_minima',
-                                    'discente_graduacao.ch_total_integralizada',
-                                    'curso.codigo_inep',
-                                    'curso.nome',
-                                    'curso.id_turno',
-                                    'curso.id_modalidade_educacao',
-                                    'curso.dt_inicio_funcionamento'
-                                )
-                        ->get();
-                        $discente = $discentes[0];
-                        $ch_integralizada_periodo = $discente->ch_total_integralizada - $ch_periodo;
-                        $ch_integralizada_periodo = $ch_integralizada_periodo < 0 ? 0 : $ch_integralizada_periodo;
-                        $ch_periodo += $discente->ch_periodo;
+            foreach ($discentes as $key => $discente) {
 
-                        if($discente->ano_ingresso == $censo && $discente->periodo_ingresso > $periodo) {
-                            continue;
-                        }
-                        $escola_publica = is_null($row->escola_publica) ? ((int) !in_array($discente->id_forma_ingresso, [11662,11654]))+1 : (int)$row->escola_publica;
-
-                        $inicio_curso = (int)date("Y", strtotime($discente->dt_inicio_funcionamento));
-                        $ano_ingresso = $discente->ano_ingresso;
-
-                        $has_apoio_social = array_key_exists($row->cpf_cnpj, $apoio_social);
-                        $has_atividade_extra = array_key_exists($row->cpf_cnpj, $atividade_extra);
-                        $has_mobilidade = array_key_exists($row->cpf_cnpj, $mobilidade_estudantil);
-
-                        $atividade_pesquisa = $has_atividade_extra ? (int)(in_array("PESQUISA", $atividade_extra[$row->cpf_cnpj]) || in_array("PESQUISA_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
-                        $atividade_extensao = $has_atividade_extra ? (int)(in_array("EXTENSAO", $atividade_extra[$row->cpf_cnpj]) || in_array("EXTENSAO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
-                        $atividade_monitoria = $has_atividade_extra ? (int)(in_array("MONITORIA", $atividade_extra[$row->cpf_cnpj]) || in_array("MONITORIA_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
-                        $atividade_estagio = $has_atividade_extra ? (int)(in_array("ESTAGIO", $atividade_extra[$row->cpf_cnpj]) || in_array("ESTAGIO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
-
-                        $aluno = [
-                            'REGISTRO'=>$discente->tipo_registro,
-                            'SEMESTRE_REFERENCIA'=> $periodo,
-                            'CODIGO_CURSO'=> $discente->curso_inep,
-                            'EAD_POLO'=> $discente->id_modalidade_educacao == 2 ? 1033528 : null,
-                            'MATRICULA'=>$discente->matricula,
-                            'TURNO'=>$discente->id_modalidade_educacao != 2 ? $discente->turno_codigo : null,
-                            'SITUACAO_VINCULO'=> $this->status($discente->vinculo_status, $discente->ch_total_minima, $ch_integralizada_periodo, $periodo),
-                            'CURSO_ORIGEM'=> null,
-                            'CONCLUSAO_PERIODO'=> null,
-                            'PARFOR'=> in_array($discente->curso_inep, [1156313,118566,1186297,
-                                                                        1186746,16895,16898,118568,1184530,
-                                                                        22532,31230,22533,31229,68225,68226,
-                                                                        68228,1185309,118564,1259131,16902,16896]) ? 0 : null,
-                            'SEMESTRE_INGRESSO'=> $inicio_curso != 1969 && $inicio_curso >= $ano_ingresso ?  "02$inicio_curso" : $discente->semestre_ingresso,
-                            'TIPO ESCOLA MEDIO'=> ($escola_publica == 2 && $discente->ano_ingresso >= 2013) ? 1 : $escola_publica,
-                            'INGR VESTIBULAR'=> (int)in_array($discente->id_forma_ingresso, [34110,11657,11656,11650,11658,11655,11659,11660,37350,11645]),
-                            'INGR ENEM'=> (int)in_array($discente->id_forma_ingresso, [51252808,11663,11662,11654,11652,11653,11661]),
-                            'INGR AVALIACAO SERIADA'=> 0,
-                            'INGR SELECAO SIMPLIFICADA'=> 0,
-                            'INGR EGRESSO BI/LI'=>0,
-                            'INGR PEC-G'=>(int)in_array($discente->id_forma_ingresso, [34117,34130]),
-                            'INGR TRANS EX OFICIO'=>(int)in_array($discente->id_forma_ingresso, [11644,11639,11642]),
-                            'INGR DECIS JUDICIAl'=>(int)in_array($discente->id_forma_ingresso, [6517]),
-                            'INGR VAGAS REMANESC'=>(int)in_array($discente->id_forma_ingresso, [11646,11647]),
-                            'INGR VAGAS PROG. ESPECIAIS'=>(int)in_array($discente->id_forma_ingresso, [34116,1697747,11643,11649,34131]),
-                            'MOBILIDADE_ACADEMICA'=>($this->vinculo == 2 ? (int)$has_mobilidade : null),
-                            'MOB_TIPO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][0] : null,
-                            'MOB_IES_DESTINO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][1] : null,
-                            'MOB_INTER_TIPO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][2] : null,
-                            'MOB_INTER_PAIS_DESTINO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][3] : null,
-                            'PROGRAMA DE RESERVAS'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11654,11652,11653, 11661,11657,11656,11650,11655,11659,11660,11645]),
-                            'RESERVA_ETNICA'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11661,11645,11650,11657,11656,11659]),
-                            'RESERVA_PCD'=>(int)in_array($discente->id_forma_ingresso, [11652,11655]),
-                            'RESERVA_ESCOLA_PUB'=>(int)in_array($discente->id_forma_ingresso, [11662,11654]),
-                            'RESERVA_RENDA'=>(int)in_array($discente->id_forma_ingresso, [11653,11661,11659,11660]),
-                            'RESERVA_OUTROS'=>0,
-                            'FINANCIAMENTO'=>null,
-                            'FINANC_FIES'=>null,
-                            'FINANC_GOV_ESTADUAL'=>null,
-                            'FINANC_GOV_MUNICIPAL'=>null,
-                            'FINANC_IES'=>null,
-                            'FINANC_EXTERNA'=>null,
-                            'FINANC_PROUNI_I'=>null,
-                            'FINANC_PROUNI_P'=>null,
-                            'FINANC_EXTERNA_NR'=>null,
-                            'FINANC_GOV_ESTADUAL_NR'=>null,
-                            'FINANC_IES_NR'=>null,
-                            'FINANC_GOV_MUNICIPAL_NR'=>null,
-                            'APOIO SOCIAL'=>(int)$has_apoio_social,
-                            'APOIO_ALIMENTACAO'=>$has_apoio_social ? (int)in_array("ALIMENTACAO", $apoio_social[$row->cpf_cnpj]) : null,
-                            'APOIO_MORADIA'=>$has_apoio_social ? (int)in_array("MORADIA", $apoio_social[$row->cpf_cnpj]) : null,
-                            'APOIO_TRANSPORTE'=>$has_apoio_social ? (int)in_array("TRANSPORTE", $apoio_social[$row->cpf_cnpj]) : null,
-                            'APOIO_MATERIAL'=>$has_apoio_social ?(int)in_array("MATERIAL", $apoio_social[$row->cpf_cnpj]) : null,
-                            'APOIO_BOLSA_TRABALHO'=>$has_apoio_social ? (int)in_array("BOLSA_TRABALHO", $apoio_social[$row->cpf_cnpj]) : null,
-                            'APOIO_BOLSA_PERMANENCIA'=>$has_apoio_social ? (int)in_array("PERMANENCIA", $apoio_social[$row->cpf_cnpj]) : null,
-                            'ATIVIDADE EXTRACURRICULAR'=>(int)$has_atividade_extra,
-                            'ATIVIDADE_PESQUISA'=>$atividade_pesquisa,
-                            'ATIVIDADE_PESQUISA_BOLSA'=> $atividade_pesquisa ? (int)in_array("PESQUISA_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
-                            'ATIVIDADE_EXTENSAO'=>$atividade_extensao,
-                            'ATIVIDADE_EXTENSAO_BOLSA'=> $atividade_extensao ? (int)in_array("EXTENSAO_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
-                            'ATIVIDADE_MONITORIA'=>$atividade_monitoria,
-                            'ATIVIDADE_MONITORIA_BOLSA'=> $atividade_monitoria ? (int)in_array("MONITORIA_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
-                            'ATIVIDADE_ESTAGIO'=> $atividade_estagio,
-                            'ATIVIDADE_ESTAGIO_BOLSA'=> $atividade_estagio ? (int)in_array("ESTAGIO_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
-                            'CH_CURSO'=>$discente->ch_total_minima,
-                            'CH_INTEGRALIZADO'=> $ch_integralizada_periodo,
-                          ];
-                          foreach ($aluno as $j => $value) {
-                              if(!$aluno['MOBILIDADE_ACADEMICA'] && explode('_', $j)[0] == 'MOB'){
-                                  $aluno[$j] = null;
-                              }
-                              if($j == 'EAD_POLO' && !$aluno['EAD_POLO']){
-                                  $aluno[$j] = null;
-                              }
-                              if(!$aluno['PROGRAMA DE RESERVAS'] && explode('_', $j)[0] == 'RESERVA'){
-                                  $aluno[$j] = null;
-                              }
-                          }
-                          array_push($file, implode('|',$aluno).PHP_EOL);
-
-                            //   var_dump($aluno);
+                // if($discente->ano_ingresso == $censo && $discente->periodo_ingresso > $periodo) {
+                //     continue;
                 // }
+
+                $ch_integralizada_periodo = $discente->ch_total_integralizada - $ch_periodo;
+                $ch_integralizada_periodo = $ch_integralizada_periodo < 0 ? 0 : $ch_integralizada_periodo;
+                $ch_periodo += $discente->ch_periodo;
+
+                $escola_publica = is_null($row->escola_publica) ? ((int) !in_array($discente->id_forma_ingresso, [11662,11654]))+1 : (int)$row->escola_publica;
+
+                $has_apoio_social = array_key_exists($row->cpf_cnpj, $apoio_social);
+                $has_mobilidade = array_key_exists($row->cpf_cnpj, $mobilidade_estudantil);
+                $has_atividade_extra = array_key_exists($row->cpf_cnpj, $atividade_extra);
+
+                $atividade_pesquisa = $has_atividade_extra ? (int)(in_array("PESQUISA", $atividade_extra[$row->cpf_cnpj]) || in_array("PESQUISA_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
+                $atividade_extensao = $has_atividade_extra ? (int)(in_array("EXTENSAO", $atividade_extra[$row->cpf_cnpj]) || in_array("EXTENSAO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
+                $atividade_monitoria = $has_atividade_extra ? (int)(in_array("MONITORIA", $atividade_extra[$row->cpf_cnpj]) || in_array("MONITORIA_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
+                $atividade_estagio = $has_atividade_extra ? (int)(in_array("ESTAGIO", $atividade_extra[$row->cpf_cnpj]) || in_array("ESTAGIO_BOLSA", $atividade_extra[$row->cpf_cnpj])) : null;
+
+                $inicio_curso = (int)date("Y", strtotime($discente->dt_inicio_funcionamento));
+                $semestre_ingresso = $inicio_curso != 1969 && $inicio_curso >= $discente->ano_ingresso ?  "02$inicio_curso" : $discente->semestre_ingresso;
+
+                $aluno = [
+                    'REGISTRO'=>$discente->tipo_registro,
+                    'SEMESTRE_REFERENCIA'=> $discente->periodo,
+                    'CODIGO_CURSO'=> $discente->codigo_inep,
+                    'EAD_POLO'=> $discente->id_modalidade_educacao == 2 ? 1033528 : null,
+                    'MATRICULA'=>$discente->matricula,
+                    'TURNO'=>$discente->id_modalidade_educacao == 2 ? null : $discente->turno_codigo,
+                    'SITUACAO_VINCULO'=> $discente->vinculo_status, //$this->status($discente->vinculo_status, $discente->ch_total_minima, $ch_integralizada_periodo, $periodo),
+                    'CURSO_ORIGEM'=> null,
+                    'CONCLUSAO_PERIODO'=> null,
+                    'PARFOR'=> in_array($discente->codigo_inep, [1156313,118566,1186297,
+                                                                1186746,16895,16898,118568,1184530,
+                                                                22532,31230,22533,31229,68225,68226,
+                                                                68228,1185309,118564,1259131,16902,16896]) ? 0 : null,
+                    'SEMESTRE_INGRESSO'=>$semestre_ingresso,
+                    'TIPO ESCOLA MEDIO'=> ($escola_publica == 2 && $discente->ano_ingresso >= 2013) ? 1 : $escola_publica,
+                    'INGR VESTIBULAR'=> (int)in_array($discente->id_forma_ingresso, [34110,11657,11656,11650,11658,11655,11659,11660,37350,11645]),
+                    'INGR ENEM'=> (int)in_array($discente->id_forma_ingresso, [51252808,11663,11662,11654,11652,11653,11661]),
+                    'INGR AVALIACAO SERIADA'=> 0,
+                    'INGR SELECAO SIMPLIFICADA'=> 0,
+                    'INGR EGRESSO BI/LI'=>0,
+                    'INGR PEC-G'=>(int)in_array($discente->id_forma_ingresso, [34117,34130]),
+                    'INGR TRANS EX OFICIO'=>(int)in_array($discente->id_forma_ingresso, [11644,11639,11642]),
+                    'INGR DECIS JUDICIAl'=>(int)in_array($discente->id_forma_ingresso, [6517]),
+                    'INGR VAGAS REMANESC'=>(int)in_array($discente->id_forma_ingresso, [11646,11647]),
+                    'INGR VAGAS PROGR ESPECIAIS'=>(int)in_array($discente->id_forma_ingresso, [34116,1697747,11643,11649,34131]),
+                    'MOBILIDADE_ACADEMICA'=>($discente->vinculo_status == 2 ? (int)$has_mobilidade : null),
+                    'MOB_TIPO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][0] : null,
+                    'MOB_IES_DESTINO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][1] : null,
+                    'MOB_INTER_TIPO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][2] : null,
+                    'MOB_INTER_PAIS_DESTINO'=> $has_mobilidade ? $mobilidade_estudantil[$row->cpf_cnpj][3] : null,
+                    'PROGRAMA DE RESERVAS'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11654,11652,11653, 11661,11657,11656,11650,11655,11659,11660,11645]),
+                    'RESERVA_ETNICA'=>(int)in_array($discente->id_forma_ingresso, [11663,11662,11661,11645,11650,11657,11656,11659]),
+                    'RESERVA_PCD'=>(int)in_array($discente->id_forma_ingresso, [11652,11655]),
+                    'RESERVA_ESCOLA_PUB'=>(int)in_array($discente->id_forma_ingresso, [11662,11654]),
+                    'RESERVA_RENDA'=>(int)in_array($discente->id_forma_ingresso, [11653,11661,11659,11660]),
+                    'RESERVA_OUTROS'=>0,
+                    'FINANCIAMENTO'=>null,
+                    'FINANC_FIES'=>null,
+                    'FINANC_GOV_ESTADUAL'=>null,
+                    'FINANC_GOV_MUNICIPAL'=>null,
+                    'FINANC_IES'=>null,
+                    'FINANC_EXTERNA'=>null,
+                    'FINANC_PROUNI_I'=>null,
+                    'FINANC_PROUNI_P'=>null,
+                    'FINANC_EXTERNA_NR'=>null,
+                    'FINANC_GOV_ESTADUAL_NR'=>null,
+                    'FINANC_IES_NR'=>null,
+                    'FINANC_GOV_MUNICIPAL_NR'=>null,
+                    'APOIO SOCIAL'=>(int)$has_apoio_social,
+                    'APOIO_ALIMENTACAO'=>$has_apoio_social ? (int)in_array("ALIMENTACAO", $apoio_social[$row->cpf_cnpj]) : null,
+                    'APOIO_MORADIA'=>$has_apoio_social ? (int)in_array("MORADIA", $apoio_social[$row->cpf_cnpj]) : null,
+                    'APOIO_TRANSPORTE'=>$has_apoio_social ? (int)in_array("TRANSPORTE", $apoio_social[$row->cpf_cnpj]) : null,
+                    'APOIO_MATERIAL'=>$has_apoio_social ?(int)in_array("MATERIAL", $apoio_social[$row->cpf_cnpj]) : null,
+                    'APOIO_BOLSA_TRABALHO'=>$has_apoio_social ? (int)in_array("BOLSA_TRABALHO", $apoio_social[$row->cpf_cnpj]) : null,
+                    'APOIO_BOLSA_PERMANENCIA'=>$has_apoio_social ? (int)in_array("PERMANENCIA", $apoio_social[$row->cpf_cnpj]) : null,
+                    'ATIVIDADE EXTRACURRICULAR'=>(int)$has_atividade_extra,
+                    'ATIVIDADE_PESQUISA'=>$atividade_pesquisa,
+                    'ATIVIDADE_PESQUISA_BOLSA'=> $atividade_pesquisa ? (int)in_array("PESQUISA_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
+                    'ATIVIDADE_EXTENSAO'=>$atividade_extensao,
+                    'ATIVIDADE_EXTENSAO_BOLSA'=> $atividade_extensao ? (int)in_array("EXTENSAO_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
+                    'ATIVIDADE_MONITORIA'=>$atividade_monitoria,
+                    'ATIVIDADE_MONITORIA_BOLSA'=> $atividade_monitoria ? (int)in_array("MONITORIA_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
+                    'ATIVIDADE_ESTAGIO'=> $atividade_estagio,
+                    'ATIVIDADE_ESTAGIO_BOLSA'=> $atividade_estagio ? (int)in_array("ESTAGIO_BOLSA", $atividade_extra[$row->cpf_cnpj]) : null,
+                    'CH_CURSO'=>$discente->ch_total_minima,
+                    'CH_INTEGRALIZADO'=> $ch_integralizada_periodo,
+                ];
+                foreach ($aluno as $j => $value) {
+                    if(!$aluno['MOBILIDADE_ACADEMICA'] && explode('_', $j)[0] == 'MOB'){
+                        $aluno[$j] = null;
+                    }
+                    if($j == 'EAD_POLO' && !$aluno['EAD_POLO']){
+                        $aluno[$j] = null;
+                    }
+                    if(!$aluno['PROGRAMA DE RESERVAS'] && explode('_', $j)[0] == 'RESERVA'){
+                        $aluno[$j] = null;
+                    }
+                }
+                if($discente->periodo != $periodo && $discente->periodo < 3){
+                    array_push($file, implode('|',$aluno).PHP_EOL);
+                }
+                if(sizeof($discentes) < 2 && $discente->ano_ingresso != 2016 && !in_array($discente->vinculo_status, [4,6])){
+                    $aluno['SEMESTRE_REFERENCIA'] = $discente->periodo != 1 ? 1 : 2;
+                    array_push($file, implode('|',$aluno).PHP_EOL);
+                }
+                $periodo = $discente->periodo;
             }
         }
         $page = @$_GET['page'] ? $_GET['page'] : 1;
@@ -290,7 +291,6 @@ class PageController extends AppController {
     }
     public function read_file($filepath, $columns = []){
         ini_set("auto_detect_line_endings", "1");
-
         $pessoas = [];
         $handle = fopen($filepath, "r");
         while (($line = fgetcsv($handle, 0, ";")) !== FALSE) {
@@ -317,8 +317,5 @@ class PageController extends AppController {
         }
         $this->vinculo = $vinculo;
         return $vinculo;
-    }
-    public function cancelados(){
-        return "(curso.ativo = true and discente.matricula in (200711074, 1201211030, 1201111028, 200711085, 201011034, 200811040, 200911036, 2201411004, 200711036, 2201211004, 2201411055, 201011040, 2201411045, 1201311049, 200711079, 2201211001, 200411016, 2201411012, 200611032, 200811033, 200811029, 200111027, 200611056, 201011007, 2201411019, 1201411006, 1201311068, 2016009851, 200911038, 200311033, 1201311054, 200718015, 1201218009, 201018008, 1201118027, 200718040, 1201318061, 200318016, 1201418014, 220138015, 1201118023, 200918057, 2201418063, 2201418060, 200618044, 1201318057, 1201318012, 200918021, 201018034, 1201118018, 2201418056, 200618045, 201018033, 201018070, 1201318013, 5201518003, 2201318055, 2017000028, 200818029, 1201118030, 200518026, 5201318002, 2201418014, 2201418047, 200618031, 200518054, 1201118015, 1201418017, 1201118012, 1201118022, 1201218070, 1201218005, 200418041, 200418034, 1201318023, 2201413526, 2201413527, 1201313523, 1201413520, 1201213522, 2201313550, 201023540, 200813235, 5201413504, 1201223524, 2201413558, 201023516, 1201313513, 1201213519, 1201123532, 1201123526, 1201223527, 201023535, 1201123541, 2201313514, 2201413561, 1201223507, 2201413521, 1201413515, 1201123536, 2201413546, 1201123509, 200824541, 4201224501, 200924521, 4201124506, 200824505, 1201324528, 1201324503, 200924517, 1201224506, 1201324549, 1201524534, 1201324514, 3201224505, 1201124515, 1201424509, 1201224507, 200824512, 200724511, 200924530, 1201424512, 1201424514, 201024510, 4201424501, 2201422277, 1201122218, 1201222206, 201022234, 1201122215, 1201422201, 2201422205, 1201322224, 2201422270, 4201312201, 1201422203, 1201422204, 2201422248, 1201322230, 1201322216, 1201422211, 2201422279, 1201122225, 1201122226, 1201322231, 1201322202, 1201122219, 201022218, 1201222209, 201022232, 2201422252, 1201322227, 1201122205, 1201322205, 201022216, 1201322222, 1201222219, 2201422255, 1201322221, 1201122223, 1201322210, 1201222212, 201022230, 1201222208, 1201222203, 1201322225, 2201422224, 2201422225, 2201422259, 2201422246, 201025044, 12013250221, 12012250221, 201025022, 200925052, 200525008, 22013250151, 2201425039, 2007250091, 200925072, 12013250021, 12011250231, 200025021, 1201225023, 200825047, 201025017, 1201425002, 1201125013, 2201425023, 12014250061, 1201225030, 2201425046, 12014250071, 12013250241, 52014250011, 2010250231, 12013250191, 2201425026, 2009250111, 2010250301, 2010250391, 12014250081, 12012250201, 2010250351, 12013250041, 1201225011, 12013250421, 201115030, 200825046, 1201125016, 1201425013, 22014250121, 200925012, 12013250211, 200925056, 12012250081, 2201125002, 2201425044, 200925071, 1201325016, 4201425002, 12013250161, 1201325024, 1201225028, 200825042, 2201325004, 1201225032, 200925024, 2010250131, 4201415001, 22014250271, 5201325002, 12014250291, 200824455, 1201324461, 200924429, 200924463, 1201324407, 2201424428, 200724435, 200924442, 2201424429, 200924439, 200914401, 200824404, 201024442, 1201424401, 200824401, 1201324412, 201024447, 200724409, 201024419, 200924450, 200624423, 1201324462, 1201324416, 1201124442, 200824409, 1201124444, 200924459, 1201324413, 200824427, 2201324404, 2201424456, 200924430, 1201324414, 200924417, 200924404, 2201324411, 201024441, 200724414, 1201424416, 1201124430, 1201224436, 2201424447, 201024401, 1201324450, 1201124409, 2201424441, 1201124406, 201024429, 3201121110, 22015211257, 3201121107, 2201421194, 2201311122, 2201411101, 200921145, 2201311102, 201021109, 1201321134, 4201111103, 200511140, 1201421174, 200711160, 201021119, 2201411107, 200911151, 1201411132, 2201411153, 1201321123, 201021117, 200921120, 12013111124, 1201411104, 200611112, 1201421136, 2201211161, 200711126, 2201411155, 201121176, 200921174, 1201121154, 1201321131, 2201421112, 2201321157, 3201211108, 1201311110, 200721116, 2201421115, 1201321125, 12013111138, 2201411174, 201011120, 200911122, 201021137, 1201311103, 201021130, 200211130, 1201221169, 200811143, 2201411159, 2201411124, 200611128, 1201311102, 200921190, 3201211103, 201021138, 1201311150, 1201321120, 1201221136, 1201121143, 2201321148, 2201421160, 200621126, 201011133, 3201111105, 12013111135, 201021129, 2201421141, 200711119, 1201321129, 2201411143, 1201311111, 200621104, 1201311154, 1201311149, 200921128, 2010112161, 1201211214, 52014112051, 2009112071, 12011112021, 200711259, 1201211218, 22014112461, 200911230, 201011255, 201011218, 2201211262, 12013112071, 2009112381, 199611261, 200411225, 2201411258, 12013112021, 12012112261, 2201411228, 1201311202, 2008112321, 1201211226, 2201411231, 12013112171, 200711255, 2008112341, 2008112091, 2201411232, 2009112301, 2201411233, 200511250, 12014112091, 200711230, 2010112211, 1201211235, 200711206, 201011246, 2006112411, 2008112301, 2006112391, 1201311225, 2007112211, 2201411262, 200611215, 1201111231, 22012112611, 1201411216, 201011220, 2201411239, 201011249, 1201411207, 200811241, 201011216, 200611228, 1201111208, 1201211210, 12014112061, 2008112691, 1201411220, 1201411215, 1201311235, 1201211237, 22013112031, 12013112141, 1201411217, 12012112061, 1201311203, 200211229, 2006112231, 1201313210, 4201323201, 200813238, 1201413231, 1201113204, 1201213213, 1201213236, 200813233, 2201413207, 200613222, 1201313218, 1201413209, 201013228, 1201213232, 1201413214, 1201413220, 200113225, 200813207, 200013231, 1201313216, 200013225, 200813244, 1201313219, 1201313241, 1201413206, 200513224, 5201413201, 200513232, 1201213209, 1201313213, 1201413212, 2201413222, 1201322106, 1201322117, 200822119, 1201422112, 2201422104, 2201422183, 1201222121, 1201322105, 1201422103, 5201122104, 200822115, 1201322128, 1201322108, 200922103, 201022136, 1201322126, 2201422116, 2201422170, 2201422166, 200122108, 200622131, 1201322101, 200822108, 200222126, 1201322109, 201022110, 200522122, 200822128, 200522131, 1201222102, 1201422107, 1201422119, 200522141, 200922134, 1201322118, 200916037, 1201416016, 200916022, 2201416061, 2201316001, 1201216034, 201116047, 2017000046, 2201416045, 1201416006, 1201116013, 2201216001, 200616029, 2201316014, 201016011, 5201416002, 201427406, 2010274322, 2010274052, 201427469, 2010274171, 2010274262, 201427441, 201427402, 1201415810, 1201415803, 2016008012, 2201415814, 2201415842, 1201215826, 1201315856, 201525802, 1201215824, 1201215832, 1201415817, 2201415856, 1201415807, 1201415820, 1201215811, 1201415816, 1201114229, 201014219, 200914258, 1201314247, 2201414234, 200524201, 1201314248, 1201414216, 200414203, 201014281, 200714210, 1201414217, 200914222, 2201414238, 1201114263, 200514224, 5201314201, 201014237, 201014272, 200814227, 200714217, 3201214201, 201114249, 1201114217, 200714229, 200514221, 2016028937, 200814239, 4201314203, 1201414210, 5201414202, 200814235, 200914256, 2016024571, 1201314269, 200914259, 201014278, 2201314205, 1201314246, 2201414260, 200814226, 2201214210, 200814223, 5201414206, 4201314204, 200914265, 200814208, 201014242, 1201114245, 200314222, 200614229, 200414220, 1201124713, 1201214715, 1201124724, 1201314716, 1201124733, 1201124747, 2201414706, 1201124731, 1201124734, 2201214765, 1201414701, 2201414737, 1201314750, 1201414717, 1201314723, 1201124727, 1201214713, 201024126, 1201124118, 200924119, 1201124113, 201024122, 2201324140, 4201224101, 200824115, 200924118, 2201524143, 200724135, 1201324114, 200624135, 1201424103, 2201324132, 2201124124, 2201424130, 1201324107, 200924120, 2201124122, 1201324112, 1201124112, 2201424142, 1201224129, 200924124, 200824122, 201024106, 1201124121, 200724109, 1201424112, 200824118, 1201324108, 201024140, 201024134, 201024117, 2201124102, 200624110, 1201324103, 1201424107, 1201324117, 1201224123, 199324131, 1201324102, 12013231101, 22014231421, 200423128, 2201423120, 200623132, 200623146, 22014231031, 1201323111, 2201423121, 22014231211, 2201423134, 22014231231, 12013231021, 12013231151, 1201323119, 22014231501, 12013231161, 12013231011, 22014231502, 201023134, 1201323120, 22013231301, 200823133, 1201323109, 22014231151, 1201223103, 1201323113, 1201123120, 200823140, 1201123117, 12013231181, 2201323113, 12014231091, 12013231231, 2201423143, 1201123134, 12012231301, 201023125, 1201323110, 1201223104, 201023118, 201023104, 1201313426, 201013411, 201013436, 1201213429, 1201113411, 1201213411, 2201413405, 1201313444, 2201413408, 1201113410, 200813416, 201013413, 1201113414, 201013416, 1201213428, 1201313412, 200913409, 2201413465, 200813423, 1201213401, 1201213413, 1201113427, 1201313427, 1201113412, 3201313401, 1201213433, 1201413417, 1201213424, 1201313446, 200813427, 1201113438, 1201113435, 200913433, 201013421, 200813421, 5201426226, 1201326203, 5201426201, 5201426234, 1201326222, 1201326213, 1201326227, 5201426214, 1201326201, 5201426203, 5201327301, 201027311, 201017342, 201017330, 201227312, 2010273326, 201027329, 201227337, 201227321, 201127310, 5201327311, 201126665, 201017313, 201227340, 201227323, 5201327339, 201127325, 201027338, 5201327336, 201227301, 5201327310, 201017327, 201027303, 201127302, 201127324, 201227331, 201127328, 201227339, 201017338, 201227335, 5201327337, 201227344, 201027302, 201027327, 201127327, 201127332, 5201427324, 201027304, 201127323, 5201427334, 201027317, 201027336, 201127340, 5201327328, 201127314, 201127313, 201127319, 201127322, 5201327347, 201227306, 201017332, 201027335, 201127303, 5201427315, 201127309, 201017335, 12011130181, 1201413026, 201113040, 1201313003, 2201213017, 2009130361, 2201413032, 2201413048, 1201313016, 2010130091, 4201413002, 1201213011, 200713013, 12011130101, 2201413063, 12011130301, 2008130351, 200813012, 1201413017, 2008130041, 200713015, 12012130151, 2201413012, 12012130111, 200913035, 2201413016, 2008130141, 200613027, 12011130261, 1201113029, 200813016, 1201413018, 1201413010, 2007130201, 12012130171, 1201213029, 2201413058, 1201413013, 2009130081, 1201313012, 201113041, 2008130131, 22011130011, 2007130211, 1201313020, 2201313062, 2201413025, 200913023, 1201113027, 1201313074, 2201413070, 1201413007, 2201113002, 2008130231, 200913051, 1201213040, 2008130251, 200713029, 200713017, 2201413047, 201013022, 1201113009, 200522011, 200422003, 200812030, 201112033, 12013120011, 2008120121, 22014120011, 1201312017, 1201412005, 22014120023, 2008120072, 2007120151, 12012120103, 2006120103, 2201412033, 22013120041, 22014120022, 1201312006, 2008120201, 200422029, 12013120063, 2009120141, 2010120093, 12012120133, 2010120053, 1201312008, 1993220234, 1201412003, 2006120151, 200222017, 2006120121, 2010120122, 12014120091, 1201412009, 22014120224, 200712006, 1201312022, 12012120081, 12013120032, 22014120062, 2010120112, 1998112008, 2201412005, 1998112037, 12014120042, 12014120073, 4201412001, 2201412008, 200522029, 2010120092, 1201412007, 22014120223, 2007120031, 12014120081, 22014120072, 12013120263, 22014120202, 2008120112, 12013120022, 2007120103, 1993120242, 12013120081, 12012120163, 2008120143, 1201212001, 2201412024, 22013120092, 22014120071, 200712004, 22011120031, 12011120091, 12014120031, 22014120101, 2008120033, 22013120051, 12014120052, 12013120143, 200422021, 12013120051, 1201412013, 12012120012, 200222014, 200422018, 199212013, 1201422407, 1201422416, 1201422404, 1201422402, 200927231, 2016023396, 201117251, 201417237, 201117202, 201117233, 201117252, 2016023313, 201117226, 201117213, 2016023411, 201117207, 201117234, 200727204, 200727211, 200927250, 200327251, 201117220, 2016022559, 2016022675, 200327246, 201117225, 200527217, 201117231, 200727216, 2016023055, 2016022479, 201217205, 200517229, 2016023574, 200527210, 200927230, 2016022719, 200517241, 200517204, 200927232, 200927251, 201117205, 201117218, 201117257, 2016023556, 201217209, 200727224, 200927253, 201217251, 200527249, 2016022853, 201117206, 200327235, 2016023298, 201117261, 200927218, 201117217, 201117244, 2016023091, 201117235, 2016022890, 200327242, 200527225, 5201517266, 200927207, 201117241, 201117260, 2016022755, 201117245, 200527234, 200517220, 200527251, 200727229, 201117219, 201117204, 201317215, 2016023430, 200517217, 201117210, 200327243, 200517205, 200927228, 2016023592, 2016023458, 2016022414, 201117237, 200727237, 201117239, 200727238, 201117229, 2016022871, 200727207, 200927256, 200517257, 200727242, 2016023251, 200727243, 200927223, 2016023350, 201117254, 200927234, 201117224, 200927205, 2016023494, 200527209, 201117209, 201117247, 201117249, 201117240, 2016022773, 200517218, 2016022610, 200517232, 200727249, 201117203, 200927213, 200527214, 200927259, 2016022835, 201117201, 2016022915, 2016022639, 2016022512, 200927241, 201117250, 200517242, 201117255, 200724015, 1201223926, 1201223920, 201024021, 1201124006, 1201223914, 200924022, 1201523903, 200324001, 1201223917, 1201124016, 199714051, 201024011, 1201124012, 1201124023, 3201124001, 200824015, 1201124024, 2201523970, 201024029, 1201223922, 2201523930, 200624001, 201114033, 1201523909, 200614018, 1201114004, 199824024, 1998114004, 1201414021, 1201314055, 1201314023, 1201314048, 1201314007, 1201114003, 200814036, 1201214006, 1201314011, 1201214018, 1998114013, 200914031, 1201314019, 200614047, 200914009, 201214001, 1999114028, 200914072, 1201214010, 1201314054, 200914005, 1201414003, 200914071, 1201214007, 1998114017, 200714024, 200714027, 1201214011, 1999114001, 1998114001, 1998114008, 2201414010, 200414020, 200714031, 1201414004, 1998114012, 1201114040, 1201114042, 200614025, 1201114052, 1998114038, 200614020, 1201314003, 1999144062, 200714050, 1998114006, 2201414015, 200614032, 2201414033, 201014036, 200614021, 200914008, 200714055, 200814006, 1201314039, 1998114039, 1998114031, 200414003, 2201414037, 1998114002, 1201415262, 200815247, 199515208, 200715226, 3201115205, 200115222, 4201525201, 200715231, 1201416128, 1201316115, 12013161108, 1201316184, 1201416106, 12013161115, 2201416179, 2201416168, 2201416165, 4201416101, 1201316119, 1201326175, 1201322549, 2201422535, 1201322518, 1201422525, 1201322537, 1201322522, 1201322509, 2201422540, 1201322543, 1201322513, 2201422542, 2201422515, 2201422543, 1201322501, 2201422546, 2201422547, 1201322545, 1201322528, 1201322536, 1201322521, 2201422553, 1201322547, 1201322554, 1201322553, 1201322529, 1201422515, 220137013, 1201227015, 1201327056, 200627022, 2003157035, 2201427004, 2201427026, 2201427027, 1994270242, 2003257015, 1201427026, 2003257033, 1201327016, 1201327010, 2003257014, 1994170087, 2201427029, 1201327022, 1201127020, 1201327020, 19941701370, 1201127027, 1995170027, 200927026, 2201427031, 2003257001, 2003267028, 2201427017, 2003257023, 4201127001, 2003257019, 2201427034, 2201427020, 2201227064, 1201427007, 1995270227, 1201227026, 200827019, 1201227003, 2201427036, 2201417189, 200727109, 200727135, 1201317147, 200827124, 200727144, 2201417156, 3201217103, 200927114, 4201217105, 1201417111, 1201317113, 1201117121, 200627128, 3201217104, 2201317111, 200927124, 2201417192, 1201317102, 22014171108, 200827118, 1201117145, 1201317151, 201017143, 2201417191, 200727131, 200727141, 1201117111, 1201415101, 1201415110, 1201315102, 201015124, 1201215127, 1201115145, 2201415155, 200325123, 200915147, 200725126, 1201415105, 200915120, 2201315114, 1201315105, 200715117, 200725123, 2201415110, 199515139, 200915128, 200725101, 2201415139, 201015118, 200615104, 1201315107, 200615142, 200715120, 200625146, 200525114, 1201315106, 200915146, 200425108, 199825131, 200815128, 1201315103, 2201415160, 200715144, 1201415120, 201013309, 1201413308, 200713321, 200913335, 200713319, 1201413312, 2016006143, 1201213322, 201013365, 1201213346, 1201213326, 1201313313, 2201113302, 2201413372, 201013317, 200913317, 2201413349, 2201413350, 200813324, 2201413336, 1201313316, 1201313354, 2201413352, 200913339, 2201413323, 200119203, 200619201, 1201319209, 1201419201, 1201419224, 2201419246, 2201419264, 201019243, 1201319249, 200619218, 199429219, 2201319216, 1201419204, 200719240, 1201319208, 1201419230, 1201319260, 1201319217, 200719230, 200319216, 2201419215, 2201119201, 201019270, 2201319222, 2201419220, 200619229, 1201319212, 2016021210, 1201319210, 2201419222, 1201219237, 1201219214, 200719219, 2201419223, 200919230, 201019239, 2201419226, 200519225, 201019203, 1201219212, 12014257169, 1201425795, 12011257753, 1201425711, 12011257163, 12014257329, 1201125720, 12014257282, 12014257290, 12011257475, 12014257163, 12011257773, 12011257713, 12011257086, 12011257423, 12011257245, 1201125717, 12011257359, 12011257105, 12011257379, 12011257373, 12014257188, 12011257385, 12011257885, 12011257026, 1201125719, 12014257284, 12014257370, 12011257199, 12014257306, 1201425771, 12014257297, 12014257319, 12011257699, 12014257105, 12011257319, 1201425721, 12011257045, 12011257033, 12011257315, 12011257433, 12011257276, 12011257115, 12011257839, 12014257271, 12011257529, 12014257161, 12011257056, 1201425783, 12014257367, 12011257455, 12011257339, 1201425796, 1201425770, 12014257295, 12011257995, 12011257025, 1201125708, 12011257093, 12011257126, 12014257191, 12014257150, 1201125704, 12011257166, 12014257171, 12014257141, 1201125712, 12011257739, 12011257129, 12011257173, 12011257419, 12011257449, 12011257135, 12011257175, 1201425747, 12011257226, 12011257103, 12014257291, 1201125718, 12014257313, 12014257272, 12011257715, 12011257345, 12011257709, 12011257076, 12014257279, 12011257253, 12011257185, 12011257999, 1201425768, 12011257285, 12014257287, 12011257023, 12011257225, 12011257066, 12011257196, 12011257265, 12011257295, 1201425784, 12011257059, 1201425703, 1201425730, 12011257123, 12011257306, 12014257311, 1201425740, 12014257122, 12011257943, 12011257833, 1201125723, 1201425750, 12011257299, 12014257349, 12014257146, 1201425744, 1201125701, 12011257349, 12011257209, 12011257183, 1201425745, 12011257189, 12011257113, 12014257299, 12011257865, 12011257335, 12011257749, 12014257157, 12011257683, 1201125763, 12011257369, 12014257302, 12014257176, 12011257805, 12011257993, 12011257145, 12014257181, 12011257329, 12011257233, 12014257317, 12014257345, 12011257703, 12011257049, 12011257069, 12011257063, 12014257195, 12014257109, 12011257365, 12011257353, 1201425797, 1201425738, 12011257133, 12011257035, 1201125715, 12011257956, 1201425746, 12011257256, 1201125728, 12011257309, 1201425705, 1201125706, 12014257253, 12014257273, 12014257330, 1201125714, 12011257459, 12011257179, 12011257205, 12011257085, 12011257429, 12011257013, 12011257019, 12014257119, 1201125710, 12014257363, 12011257275, 201324803, 201324806, 201324810, 201324813, 2013248250, 201324817, 201324818, 201324825, 201324801, 12011248066, 1201124871, 201324829, 201324831, 12011248249, 201324834, 12011248216, 201324839, 12011248185, 12011248335, 12011248285, 201324844, 12011248205, 12011248169, 1201124863, 12011248385, 201324851, 12011248045, 12011248235, 201324857, 201324859, 12011248183, 1201124804, 12011248105, 12011248166, 201324864, 201324865, 201324866, 201324870, 201324871, 12011248053, 201324872, 1201124807, 201324877, 12011248083, 1201124869, 1201124802, 12011248475, 12011248143, 201324891, 201324892, 12011248106, 201324895, 12011248445, 12011248129, 12011248595, 201324899, 12011248039, 12011248139, 2013248100, 2013248101, 12011248025, 2013248104, 2013248105, 2013248107, 12011248149, 12011248173, 12011248203, 2013248112, 2013248115, 2013248116, 12011248113, 1201124835, 12011248029, 1201124860, 2013248118, 2013248121, 2013248122, 2013248124, 1201124872, 2013248127, 1201124837, 2013248131, 2013248133, 1201124821, 12011248245, 12011248176, 12011248179, 2013248141, 12011248279, 2013248144, 12011248065, 2013248146, 12011248525, 2013248147, 12011248016, 12011248096, 12011248085, 12011248116, 1201124875, 12011248079, 12011248013, 12011248123, 12011248425, 12011248295, 12011248309, 2013248157, 1201124877, 2013248163, 1201124810, 12011248605, 12011248135, 2013248168, 2013248169, 2013248170, 2013248254, 12011248163, 2013248253, 2013248179, 2013248180, 12011248219, 2013248182, 2013248183, 2013248184, 12011248133, 2013248257, 2013248190, 12011248159, 12011248175, 2013248195, 1201124832, 2013248199, 2013248200, 2013248202, 2013248203, 12011248225, 2013248208, 12011248645, 2013248210, 2013248212, 12011248165, 1201124878, 12011248345, 2013248213, 12011248189, 12011248349, 2013248220, 12011248023, 2013248224, 2013248225, 2013248226, 12011248555, 2013248228, 2013248229, 2013248231, 2013248234, 1201124829, 2013248258, 12011248265, 12011248395, 12011248209, 12011248435, 2013248239, 2013248240, 1201124806, 12011248019, 12011248145, 12011248076, 2013248246, 2013248247, 1201124809, 2013248252, 1201124868, 1201328113, 1201228146, 1201228120, 1201128110, 1201228115, 201028131, 1201328135, 200928125, 2201328115, 201028137, 201028120, 200928133, 2201428107, 200928171, 1201328152, 200728124, 200728152, 201028138, 2201328110, 200928139, 1201328119, 200928116, 200928121, 200928122, 1201328125, 2201428159, 1201228114, 1201128127, 200928144, 200828120, 1201328111, 1201328105, 201028134, 1201328102, 2201428144, 1201328151, 200818101, 1201428115, 201028126, 200928146, 1201128120, 200628114, 1201128145, 2201428122, 1201128128, 2201328140, 2201428146, 1201328118, 2201428167, 1201128130, 1201428120,1201314713, 201127340, 22015231105, 12014257134, 5201413203, 201324883, 1201513512, 2007112551, 2201427011, 2201518083, 3201428103, 5201517266, 201427469, 201027321, 201027311, 200327251, 5201325002, 200927251, 200527249, 200517257, 200527225, 22014250121, 2201513532, 22014250271, 2201511012, 2201421152, 2201414747, 2201323113, 2010250301, 2010250351, 201126601, 2010250231, 2010250391, 200711039, 200811108, 200821165, 200911149, 200911184, 200313214, 2008250321, 201013223, 1201323119, 1201323101, 12011248073, 201117233, 200621122, 201117202, 201217251, 1201316103, 2007120151, 2008120201, 200422021, 22014120011, 12013120063, 12012120133, 2010120053, 12014120091, 2007120031, 12013120263, 2201524142, 2201523912, 22014120224, 22014120023, 22013120041, 2009120141, 12014120073, 22014120223, 2008120143, 12013120143, 201523101, 12012120081, 12013120081, 22014120071, 12014120031, 22014231021, 12011120091, 22014120101, 200511205, 200911210, 2201525010, 200511223, 200811219, 200811230, 1201215109, 2201415120, 2201522250, 2201522261, 22014250361, 2201422280, 2201315107, 4201311001, 2201522513, 201516002, 201014216, 2201516105, 2016020975, 2201519246, 2016009691, 2009112291, 1201324458, 200922112, 12014250101, 200625019, 5201322107, 1201522116, 1201522107, 200022118, 200722130, 201116621, 200511123, 200511113, 4201316002, 1201522117, 22011120031, 22014120022, 12012120012, 200818045, 22014120062, 22014120072, 12014120042, 2010120122, 12013120022, 22013120092, 2008120072, 2201513334, 200818009, 1201514702, 200818016, 2201424409, 12013231191, 2201416155, 2201516019, 1201515802, 201524403, 2016025677, 201423707, 201313751, 201216649, 201126648, 201126611, 201126610, 5201313901, 1201111109, 12011250231, 1201517103, 1201517109, 1201323120, 1201323113, 200517205, 5201125001, 2201415851, 2201524127, 2201324111, 2201527001, 1201313314, 200824432, 201025008, 2201515114, 2201513436, 2016005440, 2201413218, 2201424120, 1201411214, 2201524116, 1201428103, 2201422278, 2201528115, 1201513503, 2201414052, 22015134116, 1201314208, 200213206, 2201525016, 2201225003, 2201425053, 1201425020, 12013250091, 2201422239, 2016006368, 201012003, 2007120141, 2201413261, 2201424131, 2201511136, 2201523130, 2201422234, 2201518018, 2201324133, 2201411016, 2201314213, 2201225001, 2201527033, 22014231581, 1201325004, 200222007, 200625011, 2201515129, 2201513419, 1201422403, 2201523126, 1201222129, 22015120083, 2201213319, 201011136, 2201425051, 200911031, 2201524160, 22014112511, 4201513401, 2201528114, 2201411138, 2201414710, 1201124003, 201226605, 201213612, 200023205, 2201515106, 2201512010, 200912012, 2201511026, 12013120071, 2201412012, 201521205, 200918035, 1201213403, 12013250411, 1201524415, 5201317101, 1201315838, 1201411119, 201423717, 2201415184, 22014112371, 201512101, 1201124108, 12013120103, 201416429, 201025553, 201017330, 201217209, 1201224511, 2201511031, 200911020, 200711072, 200613228, 22015142114, 1201223104, 2006120121, 2008120033, 200422018, 2201514090, 200522016, 2008120121, 2006120103, 200422029, 2006120151, 12014120081, 2007120103, 22013120051, 199212013, 12013120011, 12013120051, 200222014, 1201212005, 200722133, 1201422109, 200611130, 1201122233, 200511127, 1201223103, 1201322231, 1201323111, 1201323109, 1201323110, 201013006, 199814010, 2201224701, 2201124402, 1201114210, 2009120221, 22015250811, 2201513023, 1201413204, 200813306, 1201417106, 2010120071, 200612004, 201028142, 1201118005, 200814021, 12014257104, 1201522134, 2201313077, 52014250011, 200828103, 200621103, 200419201, 1201511231, 12013250421, 200318003, 200418036, 200311216, 200113218, 200416024, 12014250061, 2009112091, 12013250211, 200311203, 200616046, 201016005, 2201515149, 2010120092, 22014120202, 12012250221, 12014250291, 2201516046, 200918025, 200425033, 2008250101, 1201411105, 200511255, 2201516004, 2201425028, 2006112321, 200916039, 1201123120, 12012120103, 12012120163, 200725042, 200422003, 2010120112, 200025004, 200625027, 201023125, 2010120093, 22012120633, 12014250081, 200611114, 12014120052, 2201515105, 2010250131, 200921182, 200921185, 200716031, 1201123134, 12013120032, 2201411246, 200718036, 22013250151, 2009112281, 201018018, 2007250091, 2007250441, 200911192, 201018080, 201011109, 200813410, 2201513219, 1201424517, 2201525067, 2201511214, 1201314244, 2201227062, 5201523905, 12011120122, 1201424421, 12012250201, 22014250171, 1201524416, 12013250221, 12013250021, 12014250071, 1201311140, 1201524107, 12013250241, 12012250081, 12013250161, 1201413216, 200615001, 1201525027, 1201224417, 12013250191, 1201221133, 1201112006, 2201517119, 2201216065, 12014257252, 22014120093, 1201413406, 2201422591, 2201428160, 1201121149, 2201411171, 2201516136, 2201525085, 2201513548, 12015250051, 2201513209, 4201527001, 2016030864, 1201114227, 12013250181, 1201516113, 2201416178, 1201524505, 1201215113, 2201523198, 200725107, 1201328103, 12015120091, 2201514721, 5201314204, 2201413412, 2201519212, 1201513018, 200913253, 1201419214, 2201524109, 3201413501, 201324804, 200913031, 2201111205, 2016031520, 2201411237, 200923121, 199415025, 1201323104, 200927002, 2201423120, 2201423121, 2201423134, 2201423143, 2201513020, 1201213427, 2201511161, 1201218035, 5201514202, 200523114, 2201514032, 2201514737, 22014120092, 2201424436, 1201324409, 1201425017, 1201322512, 1201322527, 2201525082, 12011250221, 201023118, 2201514011, 1201513413, 1201123117, 1201513416, 2201414226, 1201414721, 2201517142, 2201515137, 1201513409, 1201528116, 1201318005, 1201519210, 2201525071, 1201516018, 1201418016, 1201113419, 1201513209, 1201525007, 1201514225, 2201518033, 1201513011, 12015120053, 1201316121, 1201424413, 2201523144, 200422026, 2201417167, 201516003, 2201416020, 42014016001, 42014016002, 1201224414, 1201325023, 2201522109, 12013120092, 1201524421, 2201425034, 201113244, 199921054, 200919228, 201018006, 2201516040, 1201215112, 12011257079, 201217205, 200517229, 200927232, 200527234, 200517242, 201213618, 12012112111, 201117207, 1201311201, 201413619, 2201422173, 1201413014, 1201424109, 1201111001, 12014257315, 19901063, 19901082, 12011130331, 2013248198, 19901135, 199112116, 199212028, 199212075, 1201124880, 199221103, 199311246, 199316032, 201227926, 199323215, 199323113, 199325004, 1201114226, 199618033, 199715052, 199718024, 201022211, 199721115, 199814009, 1999114006, 200024110, 2013248256, 201227307, 201317211, 200423118, 200519207, 200518025, 200523140, 200611003, 2006112051, 200612002, 200613208, 2017005703, 200719223, 200719236, 200724401, 200725124, 2008143139, 200811042, 1201118006, 200811248, 2008120142, 200813019, 200813209, 200813204, 200814217, 200824440, 200824130, 2201419229, 2201515148, 201416428, 1201524409, 200924106, 2010120042, 2010120102, 201014035, 201013420, 201013437, 201017115, 201024019, 2009255454, 201116611, 201114037, 201126609, 201416001, 201416333, 2201113203, 22011130031, 2201224464, 2201311202, 2201327007, 22014112551, 2201414717, 2201416156, 2017006380, 22014225103, 22015120241, 200927234, 3201513402, 5201313302, 2201214062, 2201421133, 2010112531, 2008130111, 201116613, 200322103, 199423231, 200018008, 199618039, 1201123519, 2201513312, 12015120022, 2201515115, 2201523172, 200527214, 2201312008, 2201512015, 2201523161, 22015120022, 2201418018, 22014231181, 2201416102, 2201527065, 201013423, 200813253, 4201413101, 2201227005, 2201511272, 5201225003, 12011250691, 2201511108, 2201513016, 2201418037, 12011112081, 1201313405, 2201423123, 1201214034, 1201211107, 1201124002, 1201414018, 2201513314, 2201124109, 2201314730, 2201515101, 2201211264, 1201314014, 22012231041, 2201424150, 1201114219, 201517102, 4201215101, 201116603, 2201528116, 1201124120, 2013248173, 1201512008, 2201416010, 2016003689, 2201425019, 22015120071, 2201413247, 2201511166, 2201417144, 12011250071, 12014257140, 1201422213, 2201515812, 2201516018, 2201416026, 1201313424, 201313625, 1201415115, 1201228116, 1201522136, 2016003320, 2016003820, 200911146, 2201528140, 12014257113, 201117217, 2201517104, 2201417127, 2201514253, 1201317145, 1201113431, 12014112071, 1201328110, 1201422217, 201013426, 1201315120, 1201124542, 1201411108, 200625149, 200724142, 200924455, 2201424414, 2201523943, 200517241, 22014250081, 2201522252, 1994170303, 2013248110, 2201524428, 200927116, 12013211128, 1201525002, 201013322, 2201415132, 200625137, 1201223910, 201024017, 1201215126, 1201224135, 201525801, 1201513216, 2201524404, 2010243019, 2010120143, 201021125, 201427401, 200618039, 201317215, 201427441, 201017327, 1201425739, 201027302, 201116612, 2201511041, 2009250111, 12011257389, 12011257156, 2201416180, 12014257159) )";
     }
 }
