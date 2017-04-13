@@ -1,4 +1,4 @@
-<div class="row">    
+<div class="row">
     <div class="col-sm-12">
         @if ($paginator->hasPages())
             {{-- Pagination Elements --}}
@@ -10,7 +10,7 @@
                             <i class="fa fa-chevron-left"></i>
                         </span>
                     @else
-                        <a class="btn" href="{{ $paginator->previousPageUrl() }}" rel="prev">
+                        <a class="btn btn-waiting" href="{{url('censup'.$paginator->previousPageUrl()) }}" rel="prev">
                             <i class="fa fa-chevron-left"></i>
                         </a>
                     @endif
@@ -20,27 +20,27 @@
                     @if (is_string($element))
                         <span class="text-muted">{{ $element }}</span>
                     @endif
-                    {{-- Array Of Links --}}                
+                    {{-- Array Of Links --}}
                     @if (is_array($element))
                         @foreach ($element as $page => $url)
-                            @if ($page == $paginator->currentPage())                        
+                            @if ($page == $paginator->currentPage())
                                 <span class="btn text-primary">
                                     <i class="fa fa-file-text-o fa-3x"></i><br/>
                                     {{ $page }}
                                 </span>
                             @else
-                                <a class="btn text-muted" href="{{ $url }}">                                
+                                <a class="btn btn-waiting text-muted" href="{{ url('censup'.$url) }}">
                                     <i class="fa fa-file-text-o fa-3x"></i><br/>
                                     {{ $page }}
                                 </a>
                             @endif
                         @endforeach
-                    @endif                
-                @endforeach            
+                    @endif
+                @endforeach
                 {{-- Next Page Link --}}
-                <div class="btn-page"> 
+                <div class="btn-page">
                     @if ($paginator->hasMorePages())
-                        <a class="btn" href="{{ $paginator->nextPageUrl() }}" rel="next">
+                        <a class="btn btn-waiting" href="{{ url('censup'.$paginator->nextPageUrl()) }}" rel="next">
                             <i class="fa fa-chevron-right"></i>
                         </a>
                     @else
@@ -53,6 +53,6 @@
         @endif
     </div>
     <div class="col-sm-12">
-        <small class="text-muted">{{$paginator->total()}} registros</small>
+        <small class="text-muted">Estimativa de {{$paginator->total()/2}} registros</small>
     </div>
 </div>

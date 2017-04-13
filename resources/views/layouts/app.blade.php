@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{asset('public/css/font-awesome.min.css')}}">
     <link rel="stylesheet" href="{{asset('public/css/selectize.css')}}">
     <link rel="stylesheet" href="{{asset('public/css/custom.css')}}">
-    @stack('link')
+    @stack('style')
 </head>
 <body>
     <div class="container-fluid wrapper">
@@ -27,8 +27,8 @@
                         <li class="list-group-item"><a href="{{url('/discentes')}}">Discentes</a></li>
                         <li class="list-group-item">Docentes</li>
                         <li class="list-group-item">Cursos</li>
-                        <li class="list-group-item"><a href="{{url('/censup')}}">CENSUP</a></li>
-                        <li class="list-group-item">Vestibulum at eros</li>
+                        <li class="list-group-item"><a href="{{url('/censup')}}" class="btn-waiting">CENSUP</a></li>
+                        <li class="list-group-item"><a href="#">Vestibulum at eros</a></li>
                     </ul>
                 </nav>
             @show
@@ -52,5 +52,7 @@
     <script src="{{asset('public/js/custom.js')}}" charset="utf-8"></script>
 
     @stack('script')
+
+    @include('partial.loading')
 </body>
 </html>

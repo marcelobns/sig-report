@@ -9,43 +9,45 @@ use DB;
 class Discente extends AppModel {
     protected $table = 'public.discente';
     protected $primaryKey = 'id_discente';
+    protected $guarded = array();
 
     public function getTipoRegistroAttribute(){
         return 42;
     }
     public function getVinculoStatusAttribute(){
-        if ($this->status == null) {
-            $status = 2;
-        } elseif ($this->status == 5) {
-            $status = 3;
-        } elseif ($this->status == 3) {
-            $status = 6;
-        } elseif ($this->status == 6) {
-            $status = 4;
-        } elseif ($this->status == 9) {
-            $status = 4;
+        $status = [
+            2 => [null],
+            3 => [101],
+            4 => [4, 6, 9, 10, 17, 305, 306, 308],
+            // 5 => [],
+            6 => [315],
+            // 7 => []
+        ];
+        foreach ($status as $key=>$options) {
+            if(in_array($this->status, $options)){
+                return $key;
+            }
         }
-        return $status;
+        return 2;
     }
     public function getTurnoCodigoAttribute(){
         switch (@$this->id_turno) {
             case 1078700:
-                $codigo = 1;
+                return 1;
                 break;
             case 1078706:
-                $codigo = 2;
+                return 2;
                 break;
             case 1078702:
-                $codigo = 3;
+                return 3;
                 break;
             case 1078707:
-                $codigo = 3;
+                return 3;
                 break;
             default:
-                $codigo = 4;
+                return 4;
                 break;
         }
-        return $codigo;
     }
     public function getSemestreIngressoAttribute(){
         $this->periodo_ingresso = $this->periodo_ingresso > 2 ? 2 : $this->periodo_ingresso;

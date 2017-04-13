@@ -29,25 +29,6 @@ h4, h5, h6 {
 .table tr {
     font-size: 12px;
 }
-.loading {
-    display: none;
-}
-.loading .background {
-    position: fixed;
-    width: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    top: 0;
-    bottom: 0;
-    z-index: 999998;
-}
-.loading .indicator {
-    color: #fff;
-    width: 100%;
-    position: absolute;
-    margin-top: 20%;
-    text-align: center;
-    z-index: 999999;
-}
 .title-padding{
     padding: 30px;
 }
